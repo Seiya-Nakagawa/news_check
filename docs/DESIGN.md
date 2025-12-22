@@ -78,42 +78,94 @@ graph TD
   * **アクション**: 「動画を見る」「詳細を読む」ボタン。
   2. **Detail View (詳細モーダル/ページ)**
   * YouTube埋め込みプレーヤー。
-  * 全文要約（構造化されたテキスト）。
-  * 関連リンク。
-  3. **Settings (設定画面)**
-  * 検索キーワード設定。
-  * 除外設定。
+* **デザインコンセプト**:
+  * **Clean**: 余白を活かしたモダンなレイアウト。
+  * **Glassmorphism**: 半透明な要素を用いた奥行きのあるデザイン。
+  * **Responsive**: PC/タブレット/スマホに対応。
 
-### 3.3. データベース設計 (ER図・テーブル定義)
+* **画面構成**:
+    1. **Dashboard (メイン画面)**
+        * **ヒーローセクション**: その日の最も重要なニュースを大きく表示。
+        * **ニュースフィード**: カード形式でニュースを一覧表示。各カードにはサムネイル、タイトル、AI要約の要点（3行程度）を表示。
+        * **アクション**: 「動画を見る」「詳細を読む」ボタン。
+    2. **Detail View (詳細モーダル/ページ)**
+        * YouTube埋め込みプレーヤー。
+        * 全文要約（構造化されたテキスト）。
+        * 関連リンク。
+    3. **Settings (設定画面)**
+        * 検索キーワード設定。
+        * 除外設定。
+
+### 3.3. データベース設計
+
+#### 3.3.1. ER図
 
 ```mermaid
 erDiagram
-    videos ||--o| transcripts : "has"
-    videos ||--o| summaries : "has"
+    CHANNELS ||--o{ VIDEOS : "posts"
+    VIDEOS ||--o{ KEY_POINTS : "has"
 
-    videos {
-        UUID id PK "システムID"
-        VARCHAR youtube_id UK "YouTube動画ID"
-        TEXT title "タイトル"
-        TIMESTAMP published_at "公開日時"
-        VARCHAR status "処理ステータス"
-        TIMESTAMP created_at "収集日時"
+    CHANNELS {
+        varchar channel_id PK "チャンネルID"
+        varchar name "チャンネル名"
+        varchar url "チャンネルURL"
     }
 
-    transcripts {
-        UUID id PK
-        UUID video_id FK "videosへの外部キー"
-        TEXT content "字幕テキスト"
+    VIDEOS {
+        varchar youtube_id PK "YouTube ID"
+        varchar title "タイトル"
+        varchar channel_id FK "チャンネルID"
+        text transcript "字幕(全文)"
+        text summary "要約(全文)"
+        timestamp published_at "公開日時"
+        varchar status "処理ステータス"
     }
 
-    summaries {
-        UUID id PK
-        UUID video_id FK "videosへの外部キー"
-        TEXT summary_text "要約全文"
-        JSONB key_points "重要ポイント(配列)"
-        TIMESTAMP created_at "生成日時"
+    KEY_POINTS {
+        integer id PK "内部ID"
+        varchar youtube_id FK "YouTube ID"
+        text point "重要点"
     }
 ```
+
+#### 3.3.2. 具体的なデータ構造
+
+##### 動画リスト
+
+| YouTube ID | タイトル | チャンネルID | 字幕(全文) | 要約(全文) |
+| :--- | :--- | :--- | :--- | :--- |
+| vid001 | 今日のニュース | (省略) | (2万文字...) | (500文字...) |
+| vid002 | 明日の天気 | (省略) | (1万文字...) | (300文字...) |
+
+##### 重要点リスト
+
+| YouTube ID | 重要点 |
+| :--- | :--- |
+| vid001 | 円安が進行 |
+| vid001 | 輸出は好調 |
+| vid001 | 株価上昇 |
+| vid002 | 晴れ |
+| vid002 | 気温上昇 |
+
+##### チャンネル情報リスト
+
+| チャンネルID | チャンネル名 | チャンネルURL |
+| :--- | :--- | :--- |
+| (UC...) | ANN | ann.com |
+| (UC...) | TBS | tbs.co.jp |
+
+#### 3.3.3. インデックス設計
+
+パフォーマンス最適化のため、以下のカラムにインデックスを作成します。
+
+| テーブル名 | カラム名 | 用途 |
+| :--- | :--- | :--- |
+| **VIDEOS** | `channel_id` | チャンネル情報との結合 (JOIN) 高速化 |
+| **VIDEOS** | `published_at` | 日付指定でのニュース検索、ソート高速化 |
+| **VIDEOS** | `status` | 未処理/処理済み動画のフィルタリング高速化 |
+| **KEY_POINTS** | `youtube_id` | 動画情報との結合 (JOIN) 高速化 |
+
+*注: 各テーブルの主キー (PK) には、RDBMSにより自動的にインデックスが作成されます。*
 
 ### 3.4. API設計 (簡易)
 
