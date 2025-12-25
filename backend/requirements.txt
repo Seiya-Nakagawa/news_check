@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+psycopg2-binary
+google-generativeai
+python-dotenv
+sqlalchemy
+alembic
+pydantic-settings
+google-api-python-client
+youtube-transcript-api
