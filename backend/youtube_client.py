@@ -1,7 +1,9 @@
 import os
 from datetime import datetime
+from typing import Optional
 
 from googleapiclient.discovery import build
+from youtube_transcript_api import YouTubeTranscriptApi
 
 
 class YouTubeClient:
@@ -19,13 +21,14 @@ class YouTubeClient:
             raise Exception(f"Channel not found for handle: {handle}")
         return items[0]["id"]
 
-    def search_news_videos(self, channel_id: str, days_back: int = 1):
+    def search_news_videos(self, channel_id: str):
         """特定のチャンネルからニュース動画を検索する"""
-        # 今日の日付 mm/dd 形式
-        target_date = (datetime.now()).strftime("%m/%d")
+        # 今日の日付 m/d 形式 (ゼロ埋めなし)
+        now = datetime.now()
+        target_date = f"{now.month}/{now.day}"
+        # ANNnewsCH の形式に合わせる
         search_query = f"【ライブ】{target_date}"
 
-        # 直近の動画を検索
         request = self.youtube.search().list(
             part="snippet",
             channelId=channel_id,
@@ -39,8 +42,9 @@ class YouTubeClient:
         videos = []
         for item in response.get("items", []):
             title = item["snippet"]["title"]
-            # タイトルが「【ライブ】mm/dd」で始まるものに絞り込む
-            if title.startswith(search_query):
+            print(f"Checking title: {title}") # Debug
+            # タイトルが「【ライブ】mm/dd」を含むものに絞り込む
+            if search_query in title:
                 videos.append(
                     {
                         "id": item["id"]["videoId"],
@@ -51,6 +55,18 @@ class YouTubeClient:
                 )
 
         return videos
+
+    def get_transcript(self, video_id: str) -> Optional[str]:
+        """動画の字幕を取得する"""
+        try:
+            # v1.2.3 ではインスタンスの fetch メソッドを使用する
+            transcript_list = YouTubeTranscriptApi().fetch(
+                video_id, languages=["ja", "en"]
+            )
+            return " ".join([t.text for t in transcript_list])
+        except Exception as e:
+            print(f"Error fetching transcript for {video_id}: {str(e)}")
+            return None
 
 
 if __name__ == "__main__":
@@ -67,5 +83,7 @@ if __name__ == "__main__":
         print(f"Found {len(videos)} videos:")
         for v in videos:
             print(f"- {v['title']} ({v['id']})")
+            # transcript = client.get_transcript(v['id'])
+            # print(f"  Transcript: {transcript[:100]}...")
     except Exception as e:
         print(f"Error: {e}")

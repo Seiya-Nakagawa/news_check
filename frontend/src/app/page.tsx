@@ -7,53 +7,74 @@ import DetailModal from '@/components/news/DetailModal';
 import { Video } from '@/types/news';
 import styles from './page.module.css';
 
-// Mock data for initial development
-const MOCK_VIDEOS: Video[] = [
-  {
-    youtube_id: 'N138e_o11zQ',
-    title: '【ライブ】最新ニュース | ANNニュース',
-    channel_id: 'UC36gH3_6X-g',
-    published_at: new Date().toISOString(),
-    status: 'processed',
-    created_at: new Date().toISOString(),
-    summary: '本日の主要ニュースをAIが要約。能登半島の復旧状況や、年末年始の交通機関の混雑状況について詳しく解説しています。',
-    key_points: [
-      { id: 1, youtube_id: 'N138e_o11zQ', point: '能登半島の復旧作業が加速' },
-      { id: 2, youtube_id: 'N138e_o11zQ', point: '年末年始の帰省ラッシュがピーク' },
-      { id: 3, youtube_id: 'N138e_o11zQ', point: '全国的な寒波への警戒呼びかけ' }
-    ]
-  },
-  {
-    youtube_id: 'jNQXAC9IVRw',
-    title: '全国の天気予報と気温の変化',
-    channel_id: 'UC36gH3_6X-g',
-    published_at: new Date(Date.now() - 3600000).toISOString(),
-    status: 'processed',
-    created_at: new Date().toISOString(),
-    key_points: [
-      { id: 4, youtube_id: 'jNQXAC9IVRw', point: '明日は全国的に晴天' },
-      { id: 5, youtube_id: 'jNQXAC9IVRw', point: '乾燥注意報が各地で発令' }
-    ]
-  },
-  {
-    youtube_id: 'L-1WvEx08sc',
-    title: '経済ニュース：円安の影響と株価推移',
-    channel_id: 'UC36gH3_6X-g',
-    published_at: new Date(Date.now() - 7200000).toISOString(),
-    status: 'unprocessed',
-    created_at: new Date().toISOString(),
-  }
-];
+interface ApiVideo {
+  youtube_id: string;
+  title: string;
+  summary?: string;
+  published_at: string;
+  status: 'unprocessed' | 'processed' | 'failed_transcript';
+  key_points?: string[] | { point: string }[];
+}
 
 export default function Home() {
-  const [videos] = useState<Video[]>(MOCK_VIDEOS);
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchVideos = async () => {
+    try {
+      setIsLoading(true);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/api/news/list`);
+      if (!response.ok) throw new Error('Failed to fetch videos');
+      const data: ApiVideo[] = await response.json();
+
+      // APIのレスポンス形式を型のVideoに変換
+      const formattedVideos: Video[] = data.map((v: ApiVideo) => ({
+        youtube_id: v.youtube_id,
+        title: v.title,
+        channel_id: '',
+        published_at: v.published_at,
+        status: v.status === 'failed_transcript' ? 'error' : v.status,
+        created_at: v.published_at,
+        summary: v.summary,
+        key_points: v.key_points ? (v.key_points as any).map((kp: string | { point: string }, idx: number) => ({
+            id: idx,
+            youtube_id: v.youtube_id,
+            point: typeof kp === 'string' ? kp : kp.point
+        })) : []
+      }));
+
+      setVideos(formattedVideos);
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // In a real app, we would fetch from the API here
-    // setVideos(MOCK_VIDEOS);
+    fetchVideos();
+
+    // Headerコンポーネントからの検索イベントをリッスン
+    const handleSearch = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      setSearchQuery(customEvent.detail || '');
+    };
+    window.addEventListener('app-search', handleSearch);
+    return () => window.removeEventListener('app-search', handleSearch);
   }, []);
+
+  const filteredVideos = videos.filter(video => {
+    const query = searchQuery.toLowerCase();
+    return (
+      video.title.toLowerCase().includes(query) ||
+      (video.summary && video.summary.toLowerCase().includes(query)) ||
+      (video.key_points && video.key_points.some(kp => kp.point.toLowerCase().includes(query)))
+    );
+  });
 
   const handleVideoClick = (video: Video) => {
     setSelectedVideo(video);
@@ -64,37 +85,54 @@ export default function Home() {
     setIsModalOpen(false);
   };
 
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.loadingContainer}>
+          <div className={styles.loader}></div>
+          <p>ニュースを読み込んでいます...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.backgroundGlow} />
 
-      {videos.length > 0 && (
-        <Hero video={videos[0]} onClick={handleVideoClick} />
-      )}
+      {filteredVideos.length > 0 ? (
+        <>
+          <Hero video={filteredVideos[0]} onClick={handleVideoClick} />
 
-      <section className={styles.feedSection}>
-        <div className={styles.backgroundGlowBottom} />
-        <div className={styles.container}>
-          <div className={styles.feedHeader}>
-            <h2 className={styles.feedTitle}>最新のニュースフィード</h2>
-            <div className={styles.filters}>
-              <button className={`${styles.filterBtn} ${styles.active}`}>すべて</button>
-              <button className={styles.filterBtn}>今日</button>
-              <button className={styles.filterBtn}>今週</button>
+          <section className={styles.feedSection}>
+            <div className={styles.backgroundGlowBottom} />
+            <div className={styles.container}>
+              <div className={styles.feedHeader}>
+                <h2 className={styles.feedTitle}>
+                  {searchQuery ? `"${searchQuery}" の検索結果` : '最新のニュースフィード'}
+                </h2>
+              </div>
+
+              <div className={styles.grid}>
+                {filteredVideos.slice(1).map((video) => (
+                  <NewsCard
+                    key={video.youtube_id}
+                    video={video}
+                    onClick={handleVideoClick}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-
-          <div className={styles.grid}>
-            {videos.slice(1).map((video) => (
-              <NewsCard
-                key={video.youtube_id}
-                video={video}
-                onClick={handleVideoClick}
-              />
-            ))}
-          </div>
+          </section>
+        </>
+      ) : (
+        <div className={styles.emptyContainer}>
+          <p>{searchQuery ? `"${searchQuery}" に一致するニュースはありません。` : 'ニュースが見つかりませんでした。'}</p>
+          <button onClick={() => searchQuery ? setSearchQuery('') : fetchVideos()} className={styles.refreshBtn}>
+            {searchQuery ? '検索をクリア' : '再読み込み'}
+          </button>
         </div>
-      </section>
+      )}
 
       <DetailModal
         video={selectedVideo}

@@ -1,8 +1,15 @@
+'use client';
+
 import Link from 'next/link';
-import { Newspaper, Settings, Search } from 'lucide-react';
+import { Newspaper, Search } from 'lucide-react';
 import styles from './Header.module.css';
 
 export default function Header() {
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const event = new CustomEvent('app-search', { detail: e.target.value });
+    window.dispatchEvent(event);
+  };
+
   return (
     <header className={styles.header}>
       <div className={styles.container}>
@@ -14,11 +21,13 @@ export default function Header() {
         <nav className={styles.nav}>
           <div className={styles.searchBar}>
             <Search size={18} className={styles.searchIcon} />
-            <input type="text" placeholder="ニュースを検索..." className={styles.searchInput} />
+            <input
+              type="text"
+              placeholder="ニュースを検索..."
+              className={styles.searchInput}
+              onChange={handleSearchChange}
+            />
           </div>
-          <Link href="/settings" className={styles.settingsBtn}>
-            <Settings size={20} />
-          </Link>
         </nav>
       </div>
     </header>

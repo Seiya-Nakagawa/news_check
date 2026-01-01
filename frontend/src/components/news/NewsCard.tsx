@@ -42,15 +42,24 @@ export default function NewsCard({ video, onClick }: NewsCardProps) {
 
         <h3 className={styles.title} onClick={() => onClick(video)}>{video.title}</h3>
 
-        <div className={styles.summary}>
-          {video.key_points && video.key_points.length > 0 ? (
-            <ul className={styles.points}>
-              {video.key_points.slice(0, 2).map((point, i) => (
-                <li key={i}>{point.point}</li>
-              ))}
-            </ul>
+        <div className={styles.aiContent}>
+          {video.status === 'processed' && video.summary ? (
+            <>
+              <p className={styles.summaryText}>{video.summary}</p>
+              {video.key_points && video.key_points.length > 0 && (
+                <ul className={styles.points}>
+                  {video.key_points.slice(0, 2).map((point, i) => (
+                    <li key={i} className={styles.pointItem}>
+                      {point.point}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : video.status === 'error' ? (
+            <p className={styles.errorSummary}>※この動画は字幕データが取得できなかったため、AI要約を生成できませんでした。</p>
           ) : (
-            <p className={styles.placeholderSummary}>AI要約を生成中...</p>
+            <p className={styles.placeholderSummary}>AIが内容を分析中です。しばらくお待ちください...</p>
           )}
         </div>
 

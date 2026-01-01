@@ -72,6 +72,14 @@ button {
   background-clip: text;
 }
 
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
