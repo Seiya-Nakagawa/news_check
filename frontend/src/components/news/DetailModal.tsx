@@ -53,7 +53,7 @@ export default function DetailModal({ video, isOpen, onClose }: DetailModalProps
                   <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>
                       <span className={styles.indicator} />
-                      重要ポイントのまとめ
+                      ニュースまとめ
                     </h3>
                     <ul className={styles.pointsList}>
                       {video.key_points.map((point) => (

@@ -14,23 +14,6 @@ export default function Hero({ video, onClick }: HeroProps) {
 
   return (
     <section className={styles.hero} onClick={() => onClick(video)}>
-      <div className={styles.background}>
-        <Image
-          src={thumbnailUrl}
-          alt={video.title}
-          className={styles.bgImage}
-          fill
-          priority
-          sizes="100vw"
-          onError={(e) => {
-            // maxresdefault がない場合のフォールバック
-            const target = e.target as HTMLImageElement;
-            target.src = `https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg`;
-          }}
-        />
-        <div className={styles.overlay} />
-      </div>
-
       <div className={styles.content}>
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -39,8 +22,7 @@ export default function Hero({ video, onClick }: HeroProps) {
           className={styles.textContainer}
         >
           <div className={styles.badges}>
-            <span className={styles.badge}>Breaking News</span>
-            <span className={styles.aiBadge}>AI Analyzed</span>
+            <span className={styles.badge}>最新ニュース</span>
           </div>
           <h1 className={styles.title}>{video.title}</h1>
 
@@ -50,24 +32,30 @@ export default function Hero({ video, onClick }: HeroProps) {
             </p>
 
             {video.key_points && video.key_points.length > 0 && (
-              <ul className={styles.keyPointsList}>
-                {video.key_points.slice(0, 3).map((kp) => (
-                  <li key={kp.id} className={styles.keyPoint}>
-                    <span className={styles.pointIndicator} />
-                    {kp.point}
-                  </li>
-                ))}
-              </ul>
+              <div className={styles.pointsWrapper}>
+                <h3 className={styles.pointsSubTitle}>ニュースまとめ</h3>
+                <ul className={styles.keyPointsList}>
+                  {video.key_points.map((kp) => (
+                    <li key={kp.id} className={styles.keyPoint}>
+                      <span className={styles.pointIndicator} />
+                      {kp.point}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 
           <div className={styles.actions}>
-            <button className={styles.primaryBtn}>
-                AI要約を詳しく読む
-            </button>
-            <div className={styles.videoLink}>
+            <a
+              href={`https://www.youtube.com/watch?v=${video.youtube_id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.videoLink}
+              onClick={(e) => e.stopPropagation()}
+            >
               <Play size={16} /> 動画を再生
-            </div>
+            </a>
           </div>
         </motion.div>
       </div>

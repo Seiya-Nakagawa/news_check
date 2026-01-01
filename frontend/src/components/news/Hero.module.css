@@ -1,40 +1,13 @@
 .hero {
   position: relative;
   width: 100%;
-  height: 600px;
+  min-height: 600px;
   overflow: hidden;
   cursor: pointer;
   display: flex;
   align-items: center;
-}
-
-.background {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-}
-
-.bgImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-    circle at 0% 50%,
-    rgba(255, 255, 255, 0.95) 10%,
-    rgba(255, 255, 255, 0.8) 40%,
-    rgba(30, 64, 175, 0.1) 100%
-  );
+  padding: 60px 0;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
 }
 
 .content {
@@ -77,51 +50,88 @@
   border: 1px solid #bae6fd;
 }
 
+.textContainer {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    padding: 48px;
+    border-radius: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.1);
+}
+
 .title {
-  font-size: 3.5rem;
+  font-size: 3.25rem;
   max-width: 900px;
-  line-height: 1.15;
-  margin-bottom: 24px;
+  line-height: 1.2;
+  margin-bottom: 32px;
   color: #1e3a8a;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 
 .summaryContainer {
-  margin-bottom: 40px;
+  margin-bottom: 48px;
 }
 
 .description {
-  font-size: 1.35rem;
-  max-width: 800px;
+  font-size: 1.2rem;
+  max-width: 100%;
   color: #334155;
-  line-height: 1.7;
-  margin-bottom: 24px;
+  line-height: 1.8;
+  margin-bottom: 40px;
   font-weight: 500;
+}
+
+.pointsWrapper {
+    background: #f8fafc;
+    padding: 32px;
+    border-radius: 24px;
+    border: 1px solid #e2e8f0;
+}
+
+.pointsSubTitle {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e3a8a;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pointsSubTitle::before {
+    content: '';
+    width: 6px;
+    height: 24px;
+    background: #3b82f6;
+    border-radius: 10px;
 }
 
 .keyPointsList {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   padding-left: 0;
 }
 
 .keyPoint {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.1rem;
+  align-items: flex-start;
+  gap: 16px;
+  font-size: 1.05rem;
   font-weight: 600;
   color: #475569;
+  line-height: 1.5;
 }
 
 .pointIndicator {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   background: #3b82f6;
   border-radius: 50%;
+  margin-top: 8px;
+  flex-shrink: 0;
 }
 
 .actions {
