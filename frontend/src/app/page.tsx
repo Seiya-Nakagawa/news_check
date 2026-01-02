@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Hero from '@/components/news/Hero';
 import NewsCard from '@/components/news/NewsCard';
 import DetailModal from '@/components/news/DetailModal';
@@ -16,12 +17,15 @@ interface ApiVideo {
   key_points?: string[] | { point: string }[];
 }
 
-export default function Home() {
+function NewsContent() {
   const [videos, setVideos] = useState<Video[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchQuery = searchParams.get('q') || '';
 
   const fetchVideos = async () => {
     try {
@@ -31,7 +35,6 @@ export default function Home() {
       if (!response.ok) throw new Error('Failed to fetch videos');
       const data: ApiVideo[] = await response.json();
 
-      // APIのレスポンス形式を型のVideoに変換
       const formattedVideos: Video[] = data.map((v: ApiVideo) => ({
         youtube_id: v.youtube_id,
         title: v.title,
@@ -57,17 +60,11 @@ export default function Home() {
 
   useEffect(() => {
     fetchVideos();
-
-    // Headerコンポーネントからの検索イベントをリッスン
-    const handleSearch = (e: Event) => {
-      const customEvent = e as CustomEvent<string>;
-      setSearchQuery(customEvent.detail || '');
-    };
-    window.addEventListener('app-search', handleSearch);
-    return () => window.removeEventListener('app-search', handleSearch);
   }, []);
 
   const filteredVideos = videos.filter(video => {
+    if (video.status !== 'processed') return false;
+
     const query = searchQuery.toLowerCase();
     return (
       video.title.toLowerCase().includes(query) ||
@@ -83,6 +80,10 @@ export default function Home() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+  };
+
+  const clearSearch = () => {
+    router.push('/');
   };
 
   if (isLoading) {
@@ -102,19 +103,19 @@ export default function Home() {
 
       {filteredVideos.length > 0 ? (
         <>
-          <Hero video={filteredVideos[0]} onClick={handleVideoClick} />
+          {!searchQuery && <Hero video={filteredVideos[0]} onClick={handleVideoClick} />}
 
-          <section className={styles.feedSection}>
+          <section className={`${styles.feedSection} ${searchQuery ? styles.searchActive : ''}`}>
             <div className={styles.backgroundGlowBottom} />
             <div className={styles.container}>
               <div className={styles.feedHeader}>
                 <h2 className={styles.feedTitle}>
-                  {searchQuery ? `"${searchQuery}" の検索結果` : '最新のニュースフィード'}
+                  {searchQuery ? `"${searchQuery}" の検索結果` : '過去のニュースフィード'}
                 </h2>
               </div>
 
               <div className={styles.grid}>
-                {filteredVideos.slice(1).map((video) => (
+                {(searchQuery ? filteredVideos : filteredVideos.slice(1)).map((video) => (
                   <NewsCard
                     key={video.youtube_id}
                     video={video}
@@ -122,13 +123,21 @@ export default function Home() {
                   />
                 ))}
               </div>
+
+              {searchQuery && (
+                <div className={styles.searchFooter}>
+                  <button onClick={clearSearch} className={styles.backToTopBtn}>
+                    トップに戻る
+                  </button>
+                </div>
+              )}
             </div>
           </section>
         </>
       ) : (
         <div className={styles.emptyContainer}>
           <p>{searchQuery ? `"${searchQuery}" に一致するニュースはありません。` : 'ニュースが見つかりませんでした。'}</p>
-          <button onClick={() => searchQuery ? setSearchQuery('') : fetchVideos()} className={styles.refreshBtn}>
+          <button onClick={searchQuery ? clearSearch : fetchVideos} className={styles.refreshBtn}>
             {searchQuery ? '検索をクリア' : '再読み込み'}
           </button>
         </div>
@@ -140,5 +149,13 @@ export default function Home() {
         onClose={handleCloseModal}
       />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <NewsContent />
+    </Suspense>
   );
 }

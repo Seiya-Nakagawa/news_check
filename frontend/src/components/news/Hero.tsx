@@ -33,7 +33,7 @@ export default function Hero({ video, onClick }: HeroProps) {
 
             {video.key_points && video.key_points.length > 0 && (
               <div className={styles.pointsWrapper}>
-                <h3 className={styles.pointsSubTitle}>ニュースまとめ</h3>
+                <h3 className={styles.pointsSubTitle}>ニュース一覧</h3>
                 <ul className={styles.keyPointsList}>
                   {video.key_points.map((kp) => (
                     <li key={kp.id} className={styles.keyPoint}>

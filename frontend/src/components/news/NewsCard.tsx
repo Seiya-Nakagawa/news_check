@@ -33,7 +33,6 @@ export default function NewsCard({ video, onClick }: NewsCardProps) {
 
       <div className={styles.content}>
         <div className={styles.meta}>
-          <span className={styles.badge}>News</span>
           <span className={styles.date}>
             <Clock size={12} />
             {new Date(video.published_at).toLocaleDateString('ja-JP')}

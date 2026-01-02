@@ -58,15 +58,6 @@
   margin-bottom: 20px;
 }
 
-.badge {
-  background: #eff6ff;
-  color: #1d4ed8;
-  font-size: 0.8rem;
-  font-weight: 800;
-  padding: 6px 14px;
-  border-radius: 99px;
-  border: 1px solid rgba(29, 78, 216, 0.1);
-}
 
 .date {
   display: flex;
