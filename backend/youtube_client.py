@@ -23,11 +23,9 @@ class YouTubeClient:
 
     def search_news_videos(self, channel_id: str):
         """特定のチャンネルからニュース動画を検索する"""
-        # 今日の日付 m/d 形式 (ゼロ埋めなし)
-        now = datetime.now()
-        target_date = f"{now.month}/{now.day}"
-        # ANNnewsCH の形式に合わせる
-        search_query = f"【ライブ】{target_date}"
+        # ANNnewsCH の形式「【ライブ】」を含む動画を検索
+        # 日付指定を外して、直近のニュースも取得できるようにする
+        search_query = "【ライブ】"
 
         request = self.youtube.search().list(
             part="snippet",
@@ -35,16 +33,30 @@ class YouTubeClient:
             q=search_query,
             type="video",
             order="date",
-            maxResults=10,
+            maxResults=20,
         )
         response = request.execute()
+
+        import re
+        # "【ライブ】" + "m/d" または "mm/dd" のパターン
+        title_pattern = re.compile(r"【ライブ】\d{1,2}/\d{1,2}")
 
         videos = []
         for item in response.get("items", []):
             title = item["snippet"]["title"]
             print(f"Checking title: {title}") # Debug
-            # タイトルが「【ライブ】mm/dd」を含むものに絞り込む
-            if search_query in title:
+
+            # タイトルのチェック
+            # 1. 除外キーワードが含まれていないか確認
+            exclude_keywords = ["街頭演説", "公明党", "維新", "共産", "立憲", "国民民主", "れいわ", "社民", "参政", "自民"]
+            if any(k in title for k in exclude_keywords):
+                print(f"Skipping (excluded keyword): {title}")
+                continue
+
+            # 2. 条件:
+            # - "【ライブ】m/d" の形式を含む (日付が入っている)
+            # - または "ニュースまとめ" が含まれている (定時ニュースの場合)
+            if title_pattern.search(title) or "ニュースまとめ" in title:
                 videos.append(
                     {
                         "id": item["id"]["videoId"],
@@ -59,13 +71,52 @@ class YouTubeClient:
     def get_transcript(self, video_id: str) -> Optional[str]:
         """動画の字幕を取得する"""
         try:
-            # v1.2.3 ではインスタンスの fetch メソッドを使用する
-            transcript_list = YouTubeTranscriptApi().fetch(
-                video_id, languages=["ja", "en"]
-            )
-            return " ".join([t.text for t in transcript_list])
+            # 利用可能な字幕一覧を取得
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+
+            # デバッグ: 利用可能な字幕をすべて表示
+            print(f"Available transcripts for {video_id}:")
+            for t in transcript_list:
+                print(f" - {t.language_code} ({t.language}) [Generated: {t.is_generated}]")
+
+            # 日本語の手動作成 -> 日本語の自動生成 -> 英語 の順で探す
+            transcript = None
+            try:
+                transcript = transcript_list.find_transcript(['ja'])
+            except:
+                try:
+                    transcript = transcript_list.find_generated_transcript(['ja'])
+                except:
+                    try:
+                        transcript = transcript_list.find_transcript(['en'])
+                    except:
+                        pass
+
+            if transcript:
+                # fetchして結合
+                try:
+                    result = transcript.fetch()
+                except Exception as e:
+                    print(f"Direct fetch failed: {e}. Trying translation strategy.")
+                    try:
+                        # 翻訳字幕として取得を試みる (自動生成字幕の取得エラー回避策)
+                        result = transcript.translate('ja').fetch()
+                    except:
+                        try:
+                             result = transcript.translate('en').fetch()
+                        except Exception as e2:
+                             print(f"Translation fetch also failed: {e2}")
+                             raise e
+
+                return " ".join([t['text'] for t in result])
+            else:
+                print(f"No suitable transcript found for {video_id}")
+                return None
+
         except Exception as e:
+            import traceback
             print(f"Error fetching transcript for {video_id}: {str(e)}")
+            # print(traceback.format_exc()) # ログが長くなるので一旦コメントアウト
             return None
 
 

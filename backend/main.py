@@ -71,6 +71,10 @@ def collect_news(db: Session = Depends(get_db)):
                 )
                 db.add(db_video)
                 db.flush() # ID確定のため
+            elif db_video.status == "failed_transcript":
+                # 前回失敗していたら再試行する
+                db_video.status = "unprocessed"
+                db.flush()
 
             # 未処理の場合に要約を行う
             if db_video.status == "unprocessed":
@@ -177,3 +181,14 @@ def get_video_detail(video_id: str, db: Session = Depends(get_db)):
         "channel_name": v.channel.name,
         "channel_url": v.channel.url
     }
+
+@app.delete("/api/news/video/{video_id}")
+def delete_video(video_id: str, db: Session = Depends(get_db)):
+    """特定の動画を削除（管理者用）"""
+    v = db.query(Video).filter(Video.youtube_id == video_id).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    db.delete(v)
+    db.commit()
+    return {"status": "deleted", "youtube_id": video_id}
