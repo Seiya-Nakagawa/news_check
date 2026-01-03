@@ -1,0 +1,49 @@
+# OCI認証情報
+# 注意: この例ファイルをコピーして terraform.tfvars を作成してください
+# terraform.tfvars は .gitignore に含まれており、リポジトリにコミットされません
+
+# OCI Tenancy OCID
+tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaa..."
+
+# OCI User OCID
+user_ocid = "ocid1.user.oc1..aaaaaaaa..."
+
+# OCI API Key Fingerprint
+fingerprint = "aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99"
+
+# OCI API private key content (PEM format)
+# 
+# [方法1: ファイルから読み込む（ローカル実行時推奨）]
+private_key = file("~/.oci/oci_api_key.pem")
+# 
+# [方法2: 内容を直接記述（Terraform Cloud使用時）]
+# Terraform Cloudの場合は、Workspace Variablesで設定してください
+# private_key = <<-EOT
+# -----BEGIN RSA PRIVATE KEY-----
+# MIIEpAIBAAKCAQEA...
+# (秘密鍵の内容)
+# -----END RSA PRIVATE KEY-----
+# EOT
+
+# OCI Region
+region = "ap-tokyo-1"
+
+# OCI Compartment OCID
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaa..."
+
+# SSH公開鍵 (インスタンスへのSSHアクセス用)
+# ファイルから読み込むことも可能: file("~/.ssh/id_rsa.pub")
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... user@hostname"
+
+# (オプション) カスタムOS Image OCID
+# os_image_id = "ocid1.image.oc1.ap-tokyo-1.aaaaaaaa..."
+
+# (オプション) SSH接続を許可するCIDR (デフォルト: 0.0.0.0/0)
+# セキュリティ向上のため、本番環境では自分のIPアドレスに制限することを推奨
+# allowed_ssh_cidr = "123.456.789.0/32"
+
+# (オプション) プロジェクト名
+# project_name = "news-check"
+
+# (オプション) 環境名
+# environment = "production"
