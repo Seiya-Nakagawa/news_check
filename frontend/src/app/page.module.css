@@ -1,141 +1,203 @@
 .page {
-  --background: #fafafa;
-  --foreground: #fff;
-
-  --text-primary: #000;
-  --text-secondary: #666;
-
-  --button-primary-hover: #383838;
-  --button-secondary-hover: #f2f2f2;
-  --button-secondary-border: #ebebeb;
-
-  display: flex;
-  min-height: 100vh;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-geist-sans);
-  background-color: var(--background);
+  width: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
-.main {
+.backgroundGlow {
+  position: fixed;
+  top: -30%;
+  right: -20%;
+  width: 80%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0) 70%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(60px);
+}
+
+.backgroundGlowBottom {
+  position: fixed;
+  bottom: -40%;
+  left: -20%;
+  width: 90%;
+  height: 90%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(186, 230, 253, 0.3) 50%, rgba(186, 230, 253, 0) 80%);
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(80px);
+}
+
+.feedSection {
+  padding: 120px 0 160px;
+  position: relative;
+}
+
+.searchActive {
+  padding-top: 40px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.feedHeader {
   display: flex;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 800px;
-  flex-direction: column;
-  align-items: flex-start;
   justify-content: space-between;
-  background-color: var(--foreground);
-  padding: 120px 60px;
+  align-items: center;
+  margin-bottom: 72px;
 }
 
-.intro {
+.feedTitle {
+  font-size: 2.5rem;
+  color: #1e3a8a;
+  font-weight: 800;
+  position: relative;
+  letter-spacing: -0.02em;
+}
+
+.feedTitle::after {
+  content: '';
+  position: absolute;
+  bottom: -16px;
+  left: 0;
+  width: 80px;
+  height: 6px;
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa, transparent);
+  border-radius: 10px;
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+}
+
+.filterBtn {
+  padding: 12px 28px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #64748b;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.filterBtn:hover {
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.filterBtn.active {
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.15);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 48px;
+}
+
+@media (max-width: 768px) {
+  .feedHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 40px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .feedSection {
+    padding: 80px 0;
+  }
+
+  .feedTitle {
+    font-size: 2rem;
+  }
+}
+
+.loadingContainer, .emptyContainer {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 24px;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  gap: 20px;
+  color: #1e3a8a;
 }
 
-.intro h1 {
-  max-width: 320px;
-  font-size: 40px;
-  font-weight: 600;
-  line-height: 48px;
-  letter-spacing: -2.4px;
-  text-wrap: balance;
-  color: var(--text-primary);
+.loader {
+  width: 48px;
+  height: 48px;
+  border: 5px solid #e0f2fe;
+  border-bottom-color: #1d4ed8;
+  border-radius: 50%;
+  display: inline-block;
+  box-sizing: border-box;
+  animation: rotation 1s linear infinite;
 }
 
-.intro p {
-  max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
-  text-wrap: balance;
-  color: var(--text-secondary);
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
-.intro a {
-  font-weight: 500;
-  color: var(--text-primary);
+.refreshBtn {
+  padding: 12px 24px;
+  background: #1d4ed8;
+  color: white;
+  border-radius: 12px;
+  font-weight: 700;
+  transition: all 0.3s ease;
 }
 
-.ctas {
-  display: flex;
-  flex-direction: row;
-  width: 100%;
-  max-width: 440px;
-  gap: 16px;
-  font-size: 14px;
+.refreshBtn:hover {
+  background: #1e40af;
+  transform: translateY(-2px);
 }
 
-.ctas a {
+.searchFooter {
   display: flex;
   justify-content: center;
-  align-items: center;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 128px;
-  border: 1px solid transparent;
-  transition: 0.2s;
+  margin-top: 80px;
+}
+
+.backToTopBtn {
+  padding: 16px 48px;
+  background: #ffffff;
+  color: #1d4ed8;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+  border-radius: 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.1);
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
   cursor: pointer;
-  width: fit-content;
-  font-weight: 500;
 }
 
-a.primary {
-  background: var(--text-primary);
-  color: var(--background);
-  gap: 8px;
+.backToTopBtn:hover {
+  background: #1d4ed8;
+  color: #ffffff;
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px -10px rgba(59, 130, 246, 0.2);
+  border-color: #1d4ed8;
 }
 
-a.secondary {
-  border-color: var(--button-secondary-border);
-}
-
-/* Enable hover only on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  a.primary:hover {
-    background: var(--button-primary-hover);
-    border-color: transparent;
-  }
-
-  a.secondary:hover {
-    background: var(--button-secondary-hover);
-    border-color: transparent;
-  }
-}
-
-@media (max-width: 600px) {
-  .main {
-    padding: 48px 24px;
-  }
-
-  .intro {
-    gap: 16px;
-  }
-
-  .intro h1 {
-    font-size: 32px;
-    line-height: 40px;
-    letter-spacing: -1.92px;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  .logo {
-    filter: invert();
-  }
-
-  .page {
-    --background: #000;
-    --foreground: #000;
-
-    --text-primary: #ededed;
-    --text-secondary: #999;
-
-    --button-primary-hover: #ccc;
-    --button-secondary-hover: #1a1a1a;
-    --button-secondary-border: #1a1a1a;
-  }
+.backToTopBtn:active {
+  transform: translateY(-2px);
 }
