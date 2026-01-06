@@ -15,7 +15,7 @@ variable "fingerprint" {
 }
 
 variable "private_key" {
-  description = "OCI API private key content (PEM format)"
+  description = "OCI API Private Key"
   type        = string
   sensitive   = true
 }

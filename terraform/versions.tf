@@ -21,17 +21,13 @@ terraform {
 provider "oci" {
   # 認証情報の設定方法:
   #
-  # [Terraform Cloud使用時]
+  # [APIキー認証使用時]
   # Workspace の Variables セクションで以下を設定:
-  # - tenancy_ocid (Sensitive)
-  # - user_ocid (Sensitive)
-  # - fingerprint (Sensitive)
-  # - private_key (Sensitive) ← 秘密鍵の内容を直接設定
+  # - tenancy_ocid
+  # - user_ocid
+  # - fingerprint
+  # - private_key (Sensitive)
   # - region
-  #
-  # [ローカル実行時]
-  # terraform.tfvars ファイルまたは環境変数で設定
-  # private_key = file("~/.oci/oci_api_key.pem") のように指定可能
   tenancy_ocid = var.tenancy_ocid
   user_ocid    = var.user_ocid
   fingerprint  = var.fingerprint
