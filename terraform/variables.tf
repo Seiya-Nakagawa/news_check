@@ -65,13 +65,6 @@ variable "os_image_id" {
   default = ""
 }
 
-# SSH設定
-variable "ssh_public_key" {
-  description = "SSH public key for instance access"
-  type        = string
-  sensitive   = true
-}
-
 # ネットワーク設定
 variable "vcn_cidr_block" {
   description = "CIDR block for the VCN"
