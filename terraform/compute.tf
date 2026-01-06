@@ -11,6 +11,22 @@ resource "oci_core_instance" "news_check_instance" {
     memory_in_gbs = var.instance_memory_in_gbs
   }
 
+  # Oracle Cloud Agentの設定 (Bastion用プラグインを有効化)
+  agent_config {
+    is_management_disabled = false
+    is_monitoring_disabled = false
+
+    plugins_config {
+      desired_state = "ENABLED"
+      name          = "Bastion"
+    }
+
+    plugins_config {
+      desired_state = "ENABLED"
+      name          = "Compute Instance Console Connection"
+    }
+  }
+
   # OS Image (Ubuntu 24.04 ARM64)
   source_details {
     source_type             = "image"

@@ -51,3 +51,9 @@ output "os_image_name" {
   description = "Name of the OS image used"
   value       = var.os_image_id != "" ? "Custom Image" : data.oci_core_images.ubuntu_arm64.images[0].display_name
 }
+
+# Bastion OCID
+output "bastion_ocid" {
+  description = "OCID of the Bastion"
+  value       = oci_bastion_bastion.news_check_bastion.id
+}

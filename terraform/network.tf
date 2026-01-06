@@ -55,12 +55,13 @@ resource "oci_core_security_list" "news_check_security_list" {
     stateless   = false
   }
 
-  # Ingress Rule: SSH (22)
+  # Ingress Rule: SSH (22) from Bastion
+  # セキュリティ向上のため、VCN内部（Bastion）からのアクセスのみを許可
   ingress_security_rules {
     protocol    = "6" # TCP
-    source      = var.allowed_ssh_cidr
+    source      = var.vcn_cidr_block
     stateless   = false
-    description = "Allow SSH access"
+    description = "Allow SSH access from Bastion"
 
     tcp_options {
       min = 22
@@ -118,6 +119,21 @@ resource "oci_core_subnet" "news_check_public_subnet" {
   route_table_id             = oci_core_route_table.news_check_route_table.id
   security_list_ids          = [oci_core_security_list.news_check_security_list.id]
   prohibit_public_ip_on_vnic = false
+
+  freeform_tags = {
+    "Project"     = var.project_name
+    "Environment" = var.environment
+  }
+}
+
+# OCI Bastion
+resource "oci_bastion_bastion" "news_check_bastion" {
+  bastion_type     = "STANDARD"
+  compartment_id   = var.compartment_ocid
+  target_subnet_id = oci_core_subnet.news_check_public_subnet.id
+  client_cidr_block_allow_list = ["0.0.0.0/0"]
+  name             = "${var.project_name}-bastion"
+  max_session_ttl_in_seconds = 3600
 
   freeform_tags = {
     "Project"     = var.project_name
