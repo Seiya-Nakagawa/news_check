@@ -20,11 +20,6 @@ resource "oci_core_instance" "news_check_instance" {
       desired_state = "ENABLED"
       name          = "Bastion"
     }
-
-    plugins_config {
-      desired_state = "ENABLED"
-      name          = "Compute Instance Console Connection"
-    }
   }
 
   # OS Image (Ubuntu 24.04 ARM64)
