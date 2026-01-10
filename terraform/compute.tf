@@ -38,6 +38,7 @@ resource "oci_core_instance" "news_check_instance" {
 
   # Cloud-init & SSH Key
   metadata = {
+    ssh_authorized_keys = var.ssh_public_key
     user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
       project_name    = var.project_name
       gemini_api_key  = var.gemini_api_key
