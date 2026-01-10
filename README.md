@@ -99,6 +99,29 @@ graph TD
 
     成功すると、処理結果 (処理件数など) がJSON形式で返却されます。
 
+## 🌐 インフラ操作と接続 (Infrastructure & Operation)
+
+本プロジェクトは OCI (Oracle Cloud Infrastructure) 上で稼働しています。
+
+### インスタンスへの SSH 接続
+
+開発者向けの SSH 接続手順です。セキュリティ・リストでポート 22 を開放している場合、以下のコマンドで直接ログインできます。
+
+```bash
+# WSL (Ubuntu) 等のローカル環境から接続
+ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa ubuntu@150.230.3.83
+```
+
+> **Note**: 古い RSA キーを使用している、または OpenSSH の最新バージョンを使用している場合に備え、アルゴリズムを明示的に指定しています。
+
+### ログの確認
+
+アプリケーションの動作ログ（初期構築時の cloud-init 等）を確認するには、ログイン後に以下のコマンドを実行します。
+
+```bash
+tail -f /var/log/cloud-init-output.log
+```
+
 ## 📂 プロジェクト構成
 
 ```text

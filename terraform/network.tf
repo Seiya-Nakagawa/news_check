@@ -55,13 +55,12 @@ resource "oci_core_security_list" "news_check_security_list" {
     stateless   = false
   }
 
-  # Ingress Rule: SSH (22) - Internal Access Only (for self-provisioning or future expansion)
-  # 外部(Internet)からのSSHは許可しない。サーバー内部での実行を前提とするため。
+  # Ingress Rule: SSH (22) - Public Access (Temporary or Restricted as needed)
   ingress_security_rules {
     protocol    = "6" # TCP
-    source      = var.vcn_cidr_block
+    source      = "0.0.0.0/0"
     stateless   = false
-    description = "Allow SSH access from internal VCN only"
+    description = "Allow SSH access from anywhere"
 
     tcp_options {
       min = 22
