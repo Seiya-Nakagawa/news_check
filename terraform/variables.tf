@@ -57,6 +57,8 @@ variable "instance_display_name" {
   default     = "news-check-app-server"
 }
 
+
+
 # OS設定
 variable "os_image_id" {
   description = "OCID of the OS image (Oracle Linux 9 or Ubuntu 24.04 ARM64)"

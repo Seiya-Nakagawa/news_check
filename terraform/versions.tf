@@ -3,12 +3,12 @@ terraform {
 
   # Terraform Cloud使用時はコメント解除
   # ローカル実行時はコメントアウトのまま
-  # cloud {
-  #   organization = "your-organization-name" # ← 自分のOrganization名に変更してください
-  #   workspaces {
-  #     name = "news-check-production"
-  #   }
-  # }
+  cloud {
+    organization = "aibdlnew1-organization"
+    workspaces {
+      name = "oci_news_check"
+    }
+  }
 
   required_providers {
     oci = {
