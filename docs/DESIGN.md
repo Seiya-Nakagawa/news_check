@@ -197,3 +197,53 @@ Ansible と Docker を活用し、以下のフローで構築を行う。
 
 * **NFR-01 (UI)**: ダークモードを基調とした配色と、Google Fonts (Inter/Noto Sans JP) の採用により見やすさを確保。
 * **NFR-02 (Performance)**: フロントエンドのロード時間を短縮するため、画像は遅延読み込み(Lazy load)させる。APIレスポンスはキャッシュを検討。
+
+## 7. ディレクトリ構成と自動化設計
+
+本プロジェクトでは Infrastructure as Code (IaC) を全面的に採用し、構成管理とデプロイを自動化しています。`terraform` と `ansible` ディレクトリの設計意図を以下に示します。
+
+### 7.1. Terraform (インフラ構築)
+
+Oracle Cloud Infrastructure (OCI) のリソース管理を担当します。Always Free枠のARMインスタンスを最大限活用する構成です。
+
+#### ディレクトリ構成 (`terraform/`)
+
+*   **`main.tf`**: プロジェクト全体のプロバイダ設定や基本構成。
+*   **`compute.tf`**: コンピュートインスタンス (VM.Standard.A1.Flex) の定義。
+    *   *設計ポイント*: 4 OCPU, 24GB RAMの最大スペックを指定し、Cloud-initによる初期設定を紐づけ。
+*   **`network.tf`**: VCN, Subnet, Internet Gateway, Security List等のネットワークリソース。
+    *   *設計ポイント*: パブリックサブネットへの配置と、HTTP(80)/SSH(22)の許可設定。
+*   **`cloud-init.yaml`**: インスタンス起動時の初期設定スクリプト。
+    *   *役割*: 必要パッケージのインストール、ユーザー設定、タイムゾーン設定等。
+*   **`variables.tf` / `outputs.tf`**: 変数定義と出力値の設定。
+*   **`versions.tf`**: プロバイダのバージョン固定とTerraform Cloud設定。
+
+### 7.2. Ansible (構成管理・デプロイ)
+
+サーバー内部のミドルウェア設定、アプリケーションの配置、定期実行ジョブの管理を担当します。
+
+#### ディレクトリ構成 (`ansible/`)
+
+```
+ansible/
+├── ansible.cfg              # Ansible動作設定
+├── inventory
+│   └── hosts.yml            # 管理対象ホストの定義
+├── playbook.yml             # 全体の実行フロー定義
+└── roles                    # 役割ごとのタスク分割
+    ├── common               # 共通設定 (タイムゾーン、基本パッケージ)
+    ├── docker               # Docker環境の完全なセットアップ
+    └── app_deploy           # アプリケーションのデプロイとCron設定
+```
+
+### 7.3. 定期実行アーキテクチャ (Host Cron)
+
+ニュース収集ジョブの定期実行には、外部サービスではなく**Host Cron (サーバー内部のCron)** を採用しています。
+
+*   **採用方式**: Linux標準の `cron` デーモン
+*   **設定箇所**: `ansible/roles/app_deploy/tasks/main.yml` (Ansibleにより自動設定)
+*   **実行コマンド**: `curl -s http://localhost:8000/api/news/collect`
+*   **選定理由**:
+    1.  **コスト**: OCIの外部トリガーサービスやスケジューラを利用する場合と異なり、完全無料かつ追加リソース不要。
+    2.  **セキュリティ**: `localhost` へのリクエストで完結するため、APIエンドポイントを外部(インターネット)に公開して認証を設ける必要がない。VCN内部で閉じているため安全。
+    3.  **シンプルさ**: サーバー内のログ (`/var/log/news_check/cron.log`) で実行結果を確認でき、運用が容易。

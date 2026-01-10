@@ -1,6 +1,6 @@
 ---
 - name: Deploy News Check Application
-  hosts: news_check
+  hosts: all
   become: true
 
   vars:

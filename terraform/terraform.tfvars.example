@@ -25,6 +25,11 @@ private_key = file("~/.oci/oci_api_key.pem")
 # -----END RSA PRIVATE KEY-----
 # EOT
 
+# OCI API private key content (PEM format)... (end of section)
+
+# SSH Public Key (必須)
+ssh_public_key = "ssh-ed25519 AAAA..."
+
 # OCI Region
 region = "ap-tokyo-1"
 
