@@ -1,0 +1,19 @@
+---
+- name: Set timezone to Asia/Tokyo
+  timezone:
+    name: Asia/Tokyo
+
+- name: Install basic packages
+  apt:
+    name:
+      - git
+      - curl
+      - wget
+      - vim
+      - htop
+      - net-tools
+      - ca-certificates
+      - gnupg
+      - lsb-release
+    state: present
+    update_cache: yes
