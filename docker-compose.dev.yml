@@ -1,0 +1,25 @@
+services:
+  # バックエンド (FastAPI) - 開発用設定
+  backend:
+    volumes:
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # フロントエンド (Next.js) - 開発用設定
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: builder # ビルドステージの途中で止める
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # コンテナ内のnode_modulesを優先
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    command: npm run dev -- -H 0.0.0.0
+
+  # スケジューラ (定期実行) - 開発用設定
+  scheduler:
+    volumes:
+      - ./backend:/app
+    command: python scheduler.py

@@ -80,8 +80,11 @@ graph TD
 3. **コンテナのビルドと起動**
 
     ```bash
-    docker compose up -d --build
+    # 開発用設定 (ホットリロード有効) を適用して起動
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
     ```
+
+    > **Note**: 本番環境向けのデフォルト設定 (`docker-compose.yml` 単体) では、パフォーマンスとセキュリティ向上のため、Next.js のビルド済み成果物を使用し、ソースコードの同期が無効化されています。ローカル開発では必ず `docker-compose.dev.yml` を併用してください。
 
 4. **動作確認**
 
