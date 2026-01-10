@@ -13,3 +13,4 @@ APScheduler
 pytest
 httpx
 pytest-mock
+gunicorn

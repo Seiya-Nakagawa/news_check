@@ -15,5 +15,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ソースコードをコピー
 COPY . .
 
-# 実行コマンド
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# 実行コマンド (Gunicorn + Uvicorn workers for production)
+# 4 workers as recommended for moderate workloads
+CMD ["gunicorn", "main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000"]
