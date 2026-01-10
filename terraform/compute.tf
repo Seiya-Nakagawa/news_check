@@ -39,7 +39,9 @@ resource "oci_core_instance" "news_check_instance" {
   # Cloud-init & SSH Key
   metadata = {
     user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
-      project_name = var.project_name
+      project_name    = var.project_name
+      gemini_api_key  = var.gemini_api_key
+      youtube_api_key = var.youtube_api_key
     }))
   }
 
@@ -57,13 +59,4 @@ resource "oci_core_instance" "news_check_instance" {
       source_details[0].source_id, # OSイメージの更新を無視
     ]
   }
-}
-
-# Ansible Inventory Fileの自動生成
-resource "local_file" "ansible_inventory" {
-  content = templatefile("${path.module}/templates/hosts.yml.tpl", {
-    public_ip = oci_core_instance.news_check_instance.public_ip
-  })
-  filename = "${path.module}/../ansible/inventory/hosts.yml"
-  file_permission = "0644"
 }

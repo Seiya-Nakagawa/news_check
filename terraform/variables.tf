@@ -111,3 +111,17 @@ variable "environment" {
   type        = string
   default     = "production"
 }
+# アプリケーション秘密情報
+variable "gemini_api_key" {
+  description = "Gemini API Key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "youtube_api_key" {
+  description = "YouTube API Key"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

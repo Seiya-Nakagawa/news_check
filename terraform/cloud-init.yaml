@@ -45,7 +45,7 @@ runcmd:
   # インベントリファイルの調整 (localhostを指定)
   - echo "localhost ansible_connection=local" > inventory/hosts_local
   # Playbook実行
-  - sudo -u ubuntu ansible-playbook playbook.yml -i inventory/hosts_local --connection=local
+  - sudo -u ubuntu ansible-playbook playbook.yml -i inventory/hosts_local --connection=local --extra-vars "gemini_api_key=${gemini_api_key} youtube_api_key=${youtube_api_key}"
 
 # 最終メッセージ
 final_message: |
