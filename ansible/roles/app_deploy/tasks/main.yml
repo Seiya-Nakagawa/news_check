@@ -1,0 +1,71 @@
+---
+- name: Create project directory
+  file:
+    path: "{{ project_root }}"
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+# NOTE: GitHubリポジトリがPrivateの場合はSSH鍵の設定などが必要になります。
+# 簡易化のため、ここではローカルのファイルを同期する方式(rsync)と、
+# Git Cloneする方式の両方のパターンを想定できますが、
+# 構成管理としてはGit経由が望ましいです。
+# ただし、現在の開発環境から直接デプロイしたい場合は synchronize を使います。
+# ここでは一旦 Git Clone を基本としますが、ユーザーの要望に応じて書き換えてください。
+
+# パターンA: Gitから最新を取得
+- name: Clone/Pull repository
+  git:
+    repo: "{{ project_repo }}"
+    dest: "{{ project_root }}"
+    version: main
+    force: yes
+  ignore_errors: yes # リポジトリURLがダミーの可能性があるため
+
+# パターンB: ローカルのファイルをコピー (開発中は便利)
+# - name: Synchronize local project files to remote
+#   synchronize:
+#     src: ../../
+#     dest: "{{ project_root }}"
+#     rsync_opts:
+#       - "--exclude=.git"
+#       - "--exclude=node_modules"
+#       - "--exclude=.venv"
+#       - "--exclude=__pycache__"
+#       - "--exclude=ansible"
+#       - "--exclude=terraform"
+- name: Copy .env file
+  template:
+    src: .env.j2
+    dest: "{{ project_root }}/.env"
+    owner: ubuntu
+    group: ubuntu
+    mode: "0600"
+  # 変数が未定義でもエラーにならないよう、デフォルト値をテンプレート内で設定することを推奨
+
+- name: Create log directory for cron
+  file:
+    path: /var/log/news_check
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Setup internal cron job (replacing scheduler container functionality)
+  cron:
+    name: "Regular news collection"
+    minute: "0" # 毎時0分
+    job: "curl -s http://localhost:8000/api/news/collect >> /var/log/news_check/cron.log 2>&1"
+    user: ubuntu
+
+- name: Start Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ project_root }}"
+    build: always
+    state: present
+  register: output
+
+- name: Show Docker Compose output
+  debug:
+    var: output

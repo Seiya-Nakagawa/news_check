@@ -1,0 +1,15 @@
+---
+- name: Deploy News Check Application
+  hosts: all
+  become: true
+
+  vars:
+    project_root: "/opt/news_check"
+    project_repo: "https://github.com/Seiya-Nakagawa/news_check.git" # 必要に応じて変更
+    # ローカルからコピーする場合は synchronize モジュール等を使用しますが、
+    # ここではGit clone/pullを基本とします。
+
+  roles:
+    - common
+    - docker
+    - app_deploy

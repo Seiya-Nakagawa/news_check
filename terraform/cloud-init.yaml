@@ -1,0 +1,54 @@
+#cloud-config
+# Cloud-init設定: インスタンス初回起動時に実行される
+
+# パッケージの更新
+package_update: true
+package_upgrade: true
+
+# 必要なパッケージのインストール
+packages:
+  - git
+  - curl
+  - wget
+  - vim
+  - htop
+  - net-tools
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - ansible # Install Ansible
+
+# ファイルシステムの拡張
+runcmd:
+  # タイムゾーンをAsia/Tokyoに設定
+  - timedatectl set-timezone Asia/Tokyo
+
+  # NOTE: Docker installation is now handled by Ansible,
+  # but required for initial bootstrap if not utilizing ansible role immediately.
+  # However, to avoid conflict, we will let Ansible handle Docker installation.
+  # Here we focus on getting Ansible ready and running it.
+
+  # プロジェクト用ディレクトリの作成
+  - mkdir -p /opt/${project_name}
+  - chown ubuntu:ubuntu /opt/${project_name}
+
+  # リポジトリのクローン (Ansibleコード取得のため)
+  # NOTE: PublicリポジトリまたはToken付きURLが必要。
+  # 今回はPublicと仮定、または後でgit pullする前提でディレクトリ準備のみ。
+  # 実際にはここで clone して playbook を実行します。
+  - git clone https://github.com/Seiya-Nakagawa/news_check.git /opt/${project_name}
+  - chown -R ubuntu:ubuntu /opt/${project_name}
+
+  # Ansibleの実行 (Local)
+  # localhostに対してplaybookを実行する
+  - cd /opt/${project_name}/ansible
+  # インベントリファイルの調整 (localhostを指定)
+  - echo "localhost ansible_connection=local" > inventory/hosts_local
+  # Playbook実行
+  - sudo -u ubuntu ansible-playbook playbook.yml -i inventory/hosts_local --connection=local --extra-vars "gemini_api_key=${gemini_api_key} youtube_api_key=${youtube_api_key}"
+
+# 最終メッセージ
+final_message: |
+  Cloud-init setup completed!
+  Ansible has provisioned the server locally.
+  Instance is ready for service.

@@ -1,10 +1,15 @@
 fastapi
 uvicorn[standard]
 psycopg2-binary
-google-generativeai
+google-genai
 python-dotenv
 sqlalchemy
 alembic
 pydantic-settings
 google-api-python-client
-youtube-transcript-api
+youtube-transcript-api>=0.6.0
+requests
+APScheduler
+pytest
+httpx
+pytest-mock
