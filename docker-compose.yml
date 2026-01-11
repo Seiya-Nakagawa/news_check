@@ -21,7 +21,7 @@ services:
       dockerfile: Dockerfile
     container_name: news_check_backend
     volumes:
-      - /home/seiya/git/news_check/cookies.txt:/app/cookies.txt:ro
+      - ./cookies.txt:/app/cookies.txt:ro
     ports:
       - "8000:8000"
     environment:
@@ -60,7 +60,7 @@ services:
       dockerfile: Dockerfile
     container_name: news_check_scheduler
     volumes:
-      - /home/seiya/git/news_check/cookies.txt:/app/cookies.txt:ro
+      - ./cookies.txt:/app/cookies.txt:ro
     environment:
       DATABASE_URL: postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-news_db}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
