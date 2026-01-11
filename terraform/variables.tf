@@ -57,6 +57,12 @@ variable "instance_display_name" {
   default     = "news-check-app-server"
 }
 
+variable "instance_user" {
+  description = "OS user to create on the instance"
+  type        = string
+  default     = "seiya"
+}
+
 
 
 # OS設定

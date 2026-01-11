@@ -38,11 +38,10 @@ resource "oci_core_instance" "news_check_instance" {
 
   # Cloud-init & SSH Key
   metadata = {
-    ssh_authorized_keys = var.ssh_public_key
+    ssh_authorized_keys = var.ssh_public_key # Keep for default user access as backup
     user_data = base64encode(templatefile("${path.module}/cloud-init.yaml", {
-      project_name    = var.project_name
-      gemini_api_key  = var.gemini_api_key
-      youtube_api_key = var.youtube_api_key
+      ssh_public_key = var.ssh_public_key
+      instance_user  = var.instance_user
     }))
   }
 
@@ -56,6 +55,7 @@ resource "oci_core_instance" "news_check_instance" {
 
   # インスタンスの削除時にboot volumeを削除
   lifecycle {
+    prevent_destroy = true
     ignore_changes = [
       source_details[0].source_id, # OSイメージの更新を無視
     ]
