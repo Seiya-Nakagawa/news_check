@@ -7,8 +7,8 @@ import json
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # 1.5-flash が 404 の場合があるため 2.5-flash-preview を優先的に試行
-        self.model_id = "gemini-2.5-flash-preview-09-2025"
+        # デフォルトは 1.5-flash。環境変数 GEMINI_MODEL で変更可能。
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
     def summarize(self, transcript: str) -> Dict:
         """
