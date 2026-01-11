@@ -66,6 +66,13 @@ class YouTubeClient:
             if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}", title):
                 continue
 
+            # 配信状況を確認し、アーカイブ（VOD）以外は除外する
+            # liveBroadcastContent: 'upcoming', 'live', 'none'
+            live_broadcast_content = item["snippet"].get("liveBroadcastContent", "none")
+            if live_broadcast_content != "none":
+                # 'upcoming' (配信予定) や 'live' (配信中) は除外
+                continue
+
             if video_id not in seen_ids:
                 videos.append(
                     {
