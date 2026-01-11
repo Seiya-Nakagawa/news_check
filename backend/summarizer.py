@@ -7,8 +7,8 @@ import json
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # models/ プレフィックスを付けるのが SDK の標準
-        self.model_id = os.getenv("GEMINI_MODEL", "models/gemini-1.5-flash")
+        # 404が出たため標準的な名前に戻す。環境変数で上書きも可能。
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
     def summarize(self, transcript: str) -> Dict:
         """
