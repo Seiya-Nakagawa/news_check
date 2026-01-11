@@ -24,7 +24,20 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
-  # 変数が未定義でもエラーにならないよう、デフォルト値をテンプレート内で設定することを推奨
+
+- name: Check if local cookies.txt exists
+  local_action: stat path="{{ playbook_dir }}/../cookies.txt"
+  register: local_cookies
+  become: no
+
+- name: Copy cookies.txt to remote if it exists
+  copy:
+    src: "{{ playbook_dir }}/../cookies.txt"
+    dest: "{{ project_root }}/cookies.txt"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: local_cookies.stat.exists
 
 - name: Create log directory for cron
   file:

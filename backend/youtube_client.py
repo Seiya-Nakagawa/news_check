@@ -88,13 +88,20 @@ class YouTubeClient:
     def get_transcript(self, video_id: str) -> Optional[str]:
         """動画の字幕を取得する"""
         try:
+            # Cookieファイルの確認
+            cookies_path = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+            cookies = None
+            if os.path.exists(cookies_path):
+                print(f"Using cookies from {cookies_path}")
+                cookies = cookies_path
+
             # 利用可能な字幕一覧を取得
             if hasattr(YouTubeTranscriptApi, "list_transcripts"):
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies)
             else:
                 # Fallback for instance-based API
                 api = YouTubeTranscriptApi()
-                transcript_list = api.list(video_id)
+                transcript_list = api.list(video_id, cookies=cookies)
 
             # デバッグ: 利用可能な字幕をすべて表示
             print(f"Available transcripts for {video_id}:")
@@ -147,8 +154,9 @@ class YouTubeClient:
                 return None
 
         except Exception as e:
-            print(f"Error fetching transcript for {video_id}: {str(e)}")
-            # print(traceback.format_exc()) # ログが長くなるので一旦コメントアウト
+            print(f"Error fetching transcript for {video_id}: [{type(e).__name__}] {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
 
 

@@ -112,7 +112,7 @@ graph TD
 
 ```bash
 # WSL (Ubuntu) 等のローカル環境から接続
-ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa ubuntu@150.230.3.83
+ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa seiya@217.142.230.83
 ```
 
 > **Note**: 古い RSA キーを使用している、または OpenSSH の最新バージョンを使用している場合に備え、アルゴリズムを明示的に指定しています。
@@ -124,6 +124,44 @@ ssh -o HostKeyAlgorithms=+ssh-rsa -o PubkeyAcceptedAlgorithms=+ssh-rsa -i ~/.ssh
 ```bash
 tail -f /var/log/cloud-init-output.log
 ```
+
+## デプロイ・構成管理 (Ansible)
+
+Ansibleを使用して、ローカル環境（WSL）および本番環境（OCI）のセットアップとデプロイを自動化します。
+
+### ローカル環境 (WSL)
+
+ローカル環境の各種コンポーネントをセットアップします。
+
+* **ドライラン (確認のみ)**:
+
+  ```bash
+  sudo ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit local --check
+  ```
+
+* **実行 (適用)**:
+
+  ```bash
+  sudo ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit local
+  ```
+
+### 本番環境 (OCI)
+
+OCI インスタンスへのデプロイとセットアップを行います。
+
+* **ドライラン (確認のみ)**:
+
+  ```bash
+  ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit prod --check
+  ```
+
+* **実行 (適用)**:
+
+  ```bash
+  ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml --limit prod
+  ```
+
+> **Note**: 本番環境への実行前には、`ansible/inventory/hosts.yml` の `ansible_host` が正しいIPアドレス（`217.142.230.83`）になっていることを確認してください。
 
 ## 📂 プロジェクト構成
 
