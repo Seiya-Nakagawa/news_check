@@ -7,7 +7,7 @@ import json
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # デフォルトは 1.5-flash。環境変数 GEMINI_MODEL で変更可能。
+        # 404回避のため、より具体的なモデル名を指定
         self.model_id = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
 
     def summarize(self, transcript: str) -> Dict:
