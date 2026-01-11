@@ -89,11 +89,18 @@ class YouTubeClient:
         """動画の字幕を取得する"""
         try:
             # Cookieファイルの確認
-            cookies_path = os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+            # コンテナ内では /app/cookies.txt にマウントされる
+            potential_paths = [
+                "/app/cookies.txt",
+                os.path.join(os.path.dirname(__file__), "cookies.txt"),
+                os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
+            ]
             cookies = None
-            if os.path.exists(cookies_path):
-                print(f"Using cookies from {cookies_path}")
-                cookies = cookies_path
+            for p in potential_paths:
+                if os.path.exists(p):
+                    print(f"Using cookies from {p}")
+                    cookies = p
+                    break
 
             # 利用可能な字幕一覧を取得
             if hasattr(YouTubeTranscriptApi, "list_transcripts"):
