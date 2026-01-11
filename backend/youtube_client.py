@@ -1,4 +1,5 @@
 import os
+import re
 import time
 from typing import Optional
 
@@ -38,7 +39,7 @@ class YouTubeClient:
         """特定のチャンネルからニュース動画を検索する"""
         # ANNnewsCH の形式「【ライブ】」を含む動画を検索
         # 日付指定を外して、直近のニュースも取得できるようにする
-        search_query = "ニュース"
+        search_query = "【ライブ】"
 
         request = self.youtube.search().list(
             part="snippet",
@@ -46,7 +47,7 @@ class YouTubeClient:
             q=search_query,
             type="video",
             order="date",
-            maxResults=10,
+            maxResults=15,
         )
         response = request.execute()
 
@@ -54,11 +55,22 @@ class YouTubeClient:
         seen_ids = set()
         for item in response.get("items", []):
             video_id = item["id"]["videoId"]
+            title = item["snippet"]["title"]
+
+            # #shorts は除外する
+            if "#shorts" in title.lower():
+                continue
+
+            # タイトルが「【ライブ】mm/dd」の形式で始まっているか確認する
+            # 例: 【ライブ】1/11 ANNニュース...
+            if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}", title):
+                continue
+
             if video_id not in seen_ids:
                 videos.append(
                     {
                         "video_id": video_id,
-                        "title": item["snippet"]["title"],
+                        "title": title,
                         "description": item["snippet"]["description"],
                         "published_at": item["snippet"]["publishedAt"],
                         "thumbnail": item["snippet"]["thumbnails"]["high"]["url"],
