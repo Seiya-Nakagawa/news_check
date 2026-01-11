@@ -30,7 +30,7 @@ function NewsContent() {
   const fetchVideos = async () => {
     try {
       setIsLoading(true);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
       const response = await fetch(`${apiUrl}/api/news/list`);
       if (!response.ok) throw new Error('Failed to fetch videos');
       const data: ApiVideo[] = await response.json();
