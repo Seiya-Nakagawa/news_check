@@ -46,8 +46,12 @@ class Summarizer:
 
             return json.loads(response.text)
         except Exception as e:
-            print(f"Error in Gemini summarization: {e}")
+            error_msg = f"Error in Gemini summarization: {str(e)}"
+            print(error_msg)
+            # ログファイルにも書き込む
+            with open("gemini_error.log", "a") as f:
+                f.write(error_msg + "\n")
             return {
-                "summary": "要約の生成に失敗しました。",
+                "summary": f"要約の生成に失敗しました。({str(e)[:50]}...)",
                 "key_points": []
             }
