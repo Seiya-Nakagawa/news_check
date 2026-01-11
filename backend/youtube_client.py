@@ -89,26 +89,30 @@ class YouTubeClient:
         """動画の字幕を取得する"""
         try:
             # Cookieファイルの確認
-            # コンテナ内では /app/cookies.txt にマウントされる
-            potential_paths = [
-                "/app/cookies.txt",
-                os.path.join(os.path.dirname(__file__), "cookies.txt"),
-                os.path.join(os.path.dirname(__file__), "..", "cookies.txt")
-            ]
-            cookies = None
-            for p in potential_paths:
-                if os.path.exists(p):
-                    print(f"Using cookies from {p}")
-                    cookies = p
-                    break
+            # Dockerコンテナ内での絶対パス
+            cookies = "/app/cookies.txt"
+            if os.path.exists(cookies):
+                print(f"DEBUG: Found cookies at {cookies}")
+            else:
+                print(f"DEBUG: Cookies NOT found at {cookies}")
+                cookies = None
 
             # 利用可能な字幕一覧を取得
             if hasattr(YouTubeTranscriptApi, "list_transcripts"):
-                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies)
+                try:
+                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies)
+                    print(f"DEBUG: Passed cookies to list_transcripts: {cookies is not None}")
+                except Exception as e:
+                    print(f"DEBUG: YouTubeTranscriptApi.list_transcripts error for {video_id}: {str(e)}")
+                    # Fallback to instance-based API if list_transcripts fails unexpectedly
+                    api = YouTubeTranscriptApi()
+                    transcript_list = api.list(video_id, cookies=cookies)
+                    print(f"DEBUG: Fallback to instance-based API. Passed cookies: {cookies is not None}")
             else:
                 # Fallback for instance-based API
                 api = YouTubeTranscriptApi()
                 transcript_list = api.list(video_id, cookies=cookies)
+                print(f"DEBUG: Using instance-based API. Passed cookies: {cookies is not None}")
 
             # デバッグ: 利用可能な字幕をすべて表示
             print(f"Available transcripts for {video_id}:")
