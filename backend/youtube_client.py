@@ -21,6 +21,19 @@ class YouTubeClient:
             raise Exception(f"Channel not found for handle: {handle}")
         return items[0]["id"]
 
+    def get_video_description(self, video_id: str) -> Optional[str]:
+        """動画の説明欄を取得する"""
+        try:
+            request = self.youtube.videos().list(part="snippet", id=video_id)
+            response = request.execute()
+            items = response.get("items", [])
+            if items:
+                return items[0]["snippet"]["description"]
+            return None
+        except Exception as e:
+            print(f"Error fetching description for {video_id}: {e}")
+            return None
+
     def search_news_videos(self, channel_id: str):
         """特定のチャンネルからニュース動画を検索する"""
         # ANNnewsCH の形式「【ライブ】」を含む動画を検索
@@ -95,5 +108,12 @@ class YouTubeClient:
             # IPブロックの場合の特別メッセージ
             if "YouTube is blocking requests from your IP" in error_msg or "IpBlocked" in error_msg:
                 print("CRITICAL: YouTube is blocking this IP. Cookies might be expired or invalid.")
+
+            # 字幕が取得できなかった場合、説明欄で代用する
+            print(f"Falling back to description for video: {video_id}")
+            description = self.get_video_description(video_id)
+            if description and len(description) > 50:
+                print(f"Using description as fallback for {video_id}")
+                return f"DESCRIPTION: {description}"
 
             return None
