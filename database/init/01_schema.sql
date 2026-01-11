@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS videos (
     channel_id VARCHAR(255) REFERENCES channels(channel_id),
     transcript TEXT,
     summary TEXT,
+    thumbnail_url TEXT,
     published_at TIMESTAMP WITH TIME ZONE,
     status VARCHAR(50) DEFAULT 'unprocessed',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session
 from youtube_client import YouTubeClient
 from summarizer import Summarizer
 
-from database import Channel, Video, KeyPoint, get_db
+from database import Channel, Video, KeyPoint, engine, Base, get_db
 
 load_dotenv()
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="News Check API")
 
@@ -66,6 +67,7 @@ def collect_news(db: Session = Depends(get_db)):
                     youtube_id=v["id"],
                     title=v["title"],
                     channel_id=channel_id,
+                    thumbnail_url=v.get("thumbnail"),
                     published_at=v["published_at"],
                     status="unprocessed",
                 )
@@ -127,6 +129,7 @@ def list_news(db: Session = Depends(get_db)):
             "youtube_id": v.youtube_id,
             "title": clean_title.strip(),
             "summary": v.summary,
+            "thumbnail_url": v.thumbnail_url,
             "published_at": v.published_at,
             "status": v.status,
             "key_points": [kp.point for kp in v.key_points],
@@ -154,6 +157,7 @@ def get_daily_news(date: str, db: Session = Depends(get_db)):
                 "youtube_id": v.youtube_id,
                 "title": v.title,
                 "summary": v.summary,
+                "thumbnail_url": v.thumbnail_url,
                 "published_at": v.published_at,
                 "status": v.status,
                 "key_points": [kp.point for kp in v.key_points],

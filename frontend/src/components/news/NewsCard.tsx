@@ -10,7 +10,8 @@ interface NewsCardProps {
 }
 
 export default function NewsCard({ video, onClick }: NewsCardProps) {
-  const thumbnailUrl = `https://img.youtube.com/vi/${video.youtube_id}/hqdefault.jpg`;
+  // DBのデータにあればそれを使用、なければ i.ytimg.com から生成
+  const thumbnailUrl = video.thumbnail_url || `https://i.ytimg.com/vi/${video.youtube_id}/hqdefault.jpg`;
 
   return (
     <motion.div
@@ -25,6 +26,7 @@ export default function NewsCard({ video, onClick }: NewsCardProps) {
           className={styles.thumbnail}
           width={400}
           height={225}
+          unoptimized={true} // WSL等の環境でNext.jsの画像最適化が動かない場合があるため
         />
         <div className={styles.playOverlay}>
           <Play fill="white" size={32} />

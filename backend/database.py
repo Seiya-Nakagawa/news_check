@@ -35,6 +35,7 @@ class Video(Base):
     channel_id = Column(String, ForeignKey("channels.channel_id"))
     transcript = Column(Text)
     summary = Column(Text)
+    thumbnail_url = Column(String)
     published_at = Column(DateTime(timezone=True))
     status = Column(String, default="unprocessed")
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)

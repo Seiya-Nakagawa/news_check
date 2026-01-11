@@ -10,6 +10,7 @@ export interface Video {
   channel_id: string;
   transcript?: string;
   summary?: string;
+  thumbnail_url?: string;
   published_at: string;
   status: 'unprocessed' | 'processed' | 'error';
   created_at: string;

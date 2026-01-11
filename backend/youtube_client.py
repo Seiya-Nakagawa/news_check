@@ -42,7 +42,12 @@ class YouTubeClient:
         title_pattern = re.compile(r"【ライブ】\d{1,2}/\d{1,2}")
 
         videos = []
+        seen_ids = set()
         for item in response.get("items", []):
+            video_id = item["id"]["videoId"]
+            if video_id in seen_ids:
+                continue
+
             title = item["snippet"]["title"]
             print(f"Checking title: {title}")  # Debug
 
@@ -70,12 +75,13 @@ class YouTubeClient:
             if title_pattern.search(title) or "ニュースまとめ" in title:
                 videos.append(
                     {
-                        "id": item["id"]["videoId"],
+                        "id": video_id,
                         "title": title,
                         "published_at": item["snippet"]["publishedAt"],
                         "thumbnail": item["snippet"]["thumbnails"]["high"]["url"],
                     }
                 )
+                seen_ids.add(video_id)
 
         return videos
 
