@@ -28,6 +28,7 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-news_db}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       YOUTUBE_API_KEY: ${YOUTUBE_API_KEY}
+      PYTHONUNBUFFERED: "1"
     depends_on:
       - db
     networks:
