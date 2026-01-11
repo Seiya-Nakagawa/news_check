@@ -1,6 +1,7 @@
 import os
 import re
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from googleapiclient.discovery import build
@@ -72,6 +73,37 @@ class YouTubeClient:
             if live_broadcast_content != "none":
                 # 'upcoming' (配信予定) や 'live' (配信中) は除外
                 continue
+
+            # 未来の日付のニュースを除外する (タイトルに含まれる日付を確認)
+            # 例: 今が 1/11 なのにタイトルが 1/12 の場合は除外
+            date_match = re.search(r"(\d{1,2})/(\d{1,2})", title)
+            if date_match:
+                try:
+                    title_month = int(date_match.group(1))
+                    title_day = int(date_match.group(2))
+
+                    # 日本時間 (JST) で現在時刻を取得
+                    jst = timezone(timedelta(hours=9))
+                    now = datetime.now(jst)
+
+                    # タイトルの日付を現在と同じ年として仮定
+                    title_date = now.replace(
+                        month=title_month, day=title_day, hour=0, minute=0, second=0, microsecond=0
+                    )
+
+                    # 年末年始の境界を考慮
+                    if title_month == 12 and now.month == 1:
+                        title_date = title_date.replace(year=now.year - 1)
+                    elif title_month == 1 and now.month == 12:
+                        title_date = title_date.replace(year=now.year + 1)
+
+                    # 日付のみで比較（今日より後の日付ならスキップ）
+                    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                    if title_date > today:
+                        continue
+                except (ValueError, OverflowError):
+                    # 不正な日付形式などは無視して次へ
+                    pass
 
             if video_id not in seen_ids:
                 videos.append(
