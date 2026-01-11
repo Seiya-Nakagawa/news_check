@@ -59,7 +59,6 @@
     project_src: "{{ project_root }}"
     build: always
     state: present
-    wait: yes
   register: output
 
 - name: Show Docker Compose output
