@@ -57,8 +57,9 @@
 - name: Start Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ project_root }}"
-    build: policy
+    build: always
     state: present
+    wait: yes
   register: output
 
 - name: Show Docker Compose output
