@@ -84,6 +84,10 @@ def collect_news(db: Session = Depends(get_db)):
                 if transcript:
                     db_video.transcript = transcript
 
+                    # 429 RESOURCE_EXHAUSTED 回避のため待機
+                    import time
+                    time.sleep(5)
+
                     # AI要約の生成
                     summary_data = summarizer.summarize(transcript)
                     db_video.summary = summary_data.get("summary")
