@@ -25,7 +25,7 @@ class YouTubeClient:
         """特定のチャンネルからニュース動画を検索する"""
         # ANNnewsCH の形式「【ライブ】」を含む動画を検索
         # 日付指定を外して、直近のニュースも取得できるようにする
-        search_query = "【ライブ】"
+        search_query = "ニュース"
 
         request = self.youtube.search().list(
             part="snippet",
@@ -59,7 +59,7 @@ class YouTubeClient:
         """動画の字幕を取得する"""
         try:
             # 429回避のための待機
-            time.sleep(1.5)
+            time.sleep(3.0)
             # Cookieファイルの確認
             cookies = "/app/cookies.txt"
             if not os.path.exists(cookies):
