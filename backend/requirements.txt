@@ -7,7 +7,7 @@ sqlalchemy
 alembic
 pydantic-settings
 google-api-python-client
-youtube-transcript-api>=0.6.0
+youtube-transcript-api==0.6.1
 requests
 APScheduler
 pytest
