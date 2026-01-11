@@ -73,8 +73,8 @@ def collect_news(db: Session = Depends(get_db)):
                 )
                 db.add(db_video)
                 db.flush() # ID確定のため
-            elif db_video.status == "failed_transcript":
-                # 前回失敗していたら再試行する
+            elif not db_video.transcript or db_video.status == "failed_transcript":
+                # 前回失敗していたか、字幕がない場合は再試行する
                 db_video.status = "unprocessed"
                 db.flush()
 
