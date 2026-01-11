@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional
 
 from googleapiclient.discovery import build
@@ -57,6 +58,8 @@ class YouTubeClient:
     def get_transcript(self, video_id: str) -> Optional[str]:
         """動画の字幕を取得する"""
         try:
+            # 429回避のための待機
+            time.sleep(1.5)
             # Cookieファイルの確認
             cookies = "/app/cookies.txt"
             if not os.path.exists(cookies):
