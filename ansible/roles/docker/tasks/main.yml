@@ -37,8 +37,8 @@
     state: started
     enabled: yes
 
-- name: Add ubuntu user to docker group
+- name: Add user to docker group
   user:
-    name: ubuntu
+    name: "{{ ansible_user }}"
     groups: docker
     append: yes

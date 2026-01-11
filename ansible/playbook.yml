@@ -4,10 +4,10 @@
   become: true
 
   vars:
-    project_root: "/opt/news_check"
-    project_repo: "https://github.com/Seiya-Nakagawa/news_check.git" # 必要に応じて変更
-    # ローカルからコピーする場合は synchronize モジュール等を使用しますが、
-    # ここではGit clone/pullを基本とします。
+    # project_root and project_repo are defined in inventory/group_vars
+    # project_repo default can be kept here if common, but inventory specific is better
+    github_user: "Seiya-Nakagawa"
+    project_repo: "https://github.com/{{ github_user }}/news_check.git"
 
   roles:
     - common
