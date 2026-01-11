@@ -98,21 +98,25 @@ class YouTubeClient:
                 cookies = None
 
             # 利用可能な字幕一覧を取得
-            if hasattr(YouTubeTranscriptApi, "list_transcripts"):
+            try:
+                # cookies はファイルパスまたはNone
+                print(f"DEBUG: Attempting to list transcripts for {video_id} using settings: cookies={cookies}")
+                transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies)
+
+                # 日本語字幕を優先的に取得
                 try:
-                    transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies)
-                    print(f"DEBUG: Passed cookies to list_transcripts: {cookies is not None}")
-                except Exception as e:
-                    print(f"DEBUG: YouTubeTranscriptApi.list_transcripts error for {video_id}: {str(e)}")
-                    # Fallback to instance-based API if list_transcripts fails unexpectedly
-                    api = YouTubeTranscriptApi()
-                    transcript_list = api.list(video_id, cookies=cookies)
-                    print(f"DEBUG: Fallback to instance-based API. Passed cookies: {cookies is not None}")
-            else:
-                # Fallback for instance-based API
-                api = YouTubeTranscriptApi()
-                transcript_list = api.list(video_id, cookies=cookies)
-                print(f"DEBUG: Using instance-based API. Passed cookies: {cookies is not None}")
+                    transcript = transcript_list.find_transcript(["ja"])
+                except:
+                    # 日本語がない場合は自動翻訳を試みる
+                    transcript = transcript_list.find_generated_transcript(["ja"])
+
+                data = transcript.fetch()
+                return " ".join([t["text"] for t in data])
+            except Exception as e:
+                print(f"DEBUG: Error in list_transcripts or fetch for {video_id}: {str(e)}")
+                # ここで元のエラーメッセージをそのまま出すのではなく、例外を上に投げて
+                # 元々のエラーハンドリング（IPブロックの判定など）に任せる
+                raise
 
             # デバッグ: 利用可能な字幕をすべて表示
             print(f"Available transcripts for {video_id}:")
