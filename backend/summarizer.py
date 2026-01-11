@@ -7,7 +7,8 @@ import json
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        # 環境のリストにあった実在するモデル名 gemini-flash-latest を使用
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 
     def summarize(self, transcript: str) -> Dict:
         """
