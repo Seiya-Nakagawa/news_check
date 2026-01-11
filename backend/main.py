@@ -61,10 +61,10 @@ def collect_news(db: Session = Depends(get_db)):
         processed_count = 0
         for v in videos:
             # 既に存在するかチェック
-            db_video = db.query(Video).filter(Video.youtube_id == v["id"]).first()
+            db_video = db.query(Video).filter(Video.youtube_id == v["video_id"]).first()
             if not db_video:
                 db_video = Video(
-                    youtube_id=v["id"],
+                    youtube_id=v["video_id"],
                     title=v["title"],
                     channel_id=channel_id,
                     thumbnail_url=v.get("thumbnail"),
