@@ -12,6 +12,7 @@ interface ApiVideo {
   youtube_id: string;
   title: string;
   summary?: string;
+  thumbnail_url?: string;
   published_at: string;
   status: 'unprocessed' | 'processed' | 'failed_transcript';
   key_points?: string[] | { point: string }[];
@@ -39,6 +40,7 @@ function NewsContent() {
         youtube_id: v.youtube_id,
         title: v.title,
         channel_id: '',
+        thumbnail_url: v.thumbnail_url,
         published_at: v.published_at,
         status: v.status === 'failed_transcript' ? 'error' : v.status,
         created_at: v.published_at,
@@ -46,7 +48,7 @@ function NewsContent() {
         key_points: v.key_points ? (v.key_points as any).map((kp: string | { point: string }, idx: number) => ({
             id: idx,
             youtube_id: v.youtube_id,
-            point: typeof kp === 'string' ? kp : kp.point
+            point: typeof kp === 'string' ? kp : (kp as any).point || (kp as any).content || ''
         })) : []
       }));
 

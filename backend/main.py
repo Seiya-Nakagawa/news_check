@@ -135,12 +135,12 @@ def list_news(db: Session = Depends(get_db)):
         key_points = [kp.point for kp in v.key_points]
         result.append(
             {
-                "id": v.youtube_id,
-                "video_id": v.youtube_id,
+                "youtube_id": v.youtube_id,
                 "title": v.title,
                 "summary": v.summary,
                 "published_at": v.published_at.isoformat() if v.published_at else None,
-                "thumbnail": v.thumbnail_url,  # Frontend expects 'thumbnail'
+                "thumbnail_url": v.thumbnail_url,
+                "status": v.status,
                 "key_points": key_points,
             }
         )
