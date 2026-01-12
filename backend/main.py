@@ -77,32 +77,53 @@ def collect_news(db: Session = Depends(get_db)):
         processed_count = 0
         for db_video in pending_videos:
             try:
-                # 字幕または説明文を取得
-                transcript = db_video.transcript or youtube_client.get_transcript(
-                    db_video.youtube_id
+                # すでに字幕を持っているが DESCRIPTION Fallback の場合、再度字幕取得を試みる（復活の可能性）
+                is_fallback = db_video.transcript and db_video.transcript.startswith(
+                    "DESCRIPTION:"
                 )
+                transcript = db_video.transcript
+
+                if not transcript or is_fallback:
+                    new_transcript = youtube_client.get_transcript(db_video.youtube_id)
+                    if new_transcript:
+                        # 新しく取得できた場合は上書き (fallback から real への昇格を優先)
+                        if not is_fallback or not new_transcript.startswith(
+                            "DESCRIPTION:"
+                        ):
+                            db_video.transcript = new_transcript
+                            transcript = new_transcript
+
                 if transcript:
-                    db_video.transcript = transcript
+                    # 前回の要約が失敗、または説明文ベースで低品質な場合に再試行する
+                    is_bad_summary = (
+                        not db_video.summary
+                        or "要約の生成に失敗しました" in db_video.summary
+                        or "この字幕テキストは" in db_video.summary
+                        or "このニュース動画は"
+                        in db_video.summary  # 定型的なAIの回答を弾く
+                        or "この動画は" in db_video.summary[:20]
+                    )
 
-                    # API制限回避
-                    time.sleep(5)
+                    if is_bad_summary:
+                        # API制限回避
+                        time.sleep(5)
 
-                    # AI要約の生成
-                    summary_data = summarizer.summarize(transcript)
-                    db_video.summary = summary_data.get("summary")
+                        # AI要約の生成
+                        summary_data = summarizer.summarize(transcript)
+                        db_video.summary = summary_data.get("summary")
 
-                    # 重要ポイントの保存（既存分を削除して更新）
-                    # models.py の定義に合わせて youtube_id と point カラムを使用
-                    db.query(KeyPoint).filter(
-                        KeyPoint.youtube_id == db_video.youtube_id
-                    ).delete()
-                    for pt in summary_data.get("key_points", []):
-                        kp = KeyPoint(youtube_id=db_video.youtube_id, point=pt)
-                        db.add(kp)
+                        # 重要ポイントの保存（既存分を削除して更新）
+                        # models.py の定義に合わせて youtube_id と point カラムを使用
+                        db.query(KeyPoint).filter(
+                            KeyPoint.youtube_id == db_video.youtube_id
+                        ).delete()
+                        for pt in summary_data.get("key_points", []):
+                            kp = KeyPoint(youtube_id=db_video.youtube_id, point=pt)
+                            db.add(kp)
 
-                    db_video.status = "processed"
-                    db.commit()
-                    processed_count += 1
+                        db_video.status = "processed"
+                        db.commit()
+                        processed_count += 1
                 else:
                     db_video.status = "failed_transcript"
                     db.commit()

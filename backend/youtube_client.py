@@ -88,7 +88,12 @@ class YouTubeClient:
 
                     # タイトルの日付を現在と同じ年として仮定
                     title_date = now.replace(
-                        month=title_month, day=title_day, hour=0, minute=0, second=0, microsecond=0
+                        month=title_month,
+                        day=title_day,
+                        hour=0,
+                        minute=0,
+                        second=0,
+                        microsecond=0,
                     )
 
                     # 年末年始の境界を考慮
@@ -132,7 +137,9 @@ class YouTubeClient:
                 print(f"DEBUG: Using cookies from {cookies}")
 
             # 利用可能な字幕一覧を取得
-            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id, cookies=cookies)
+            transcript_list = YouTubeTranscriptApi.list_transcripts(
+                video_id, cookies=cookies
+            )
 
             # 日本語字幕を優先的に取得
             try:
@@ -157,14 +164,35 @@ class YouTubeClient:
             print(f"Error fetching transcript for {video_id}: {error_msg}")
 
             # IPブロックの場合の特別メッセージ
-            if "YouTube is blocking requests from your IP" in error_msg or "IpBlocked" in error_msg:
-                print("CRITICAL: YouTube is blocking this IP. Cookies might be expired or invalid.")
+            if (
+                "YouTube is blocking requests from your IP" in error_msg
+                or "IpBlocked" in error_msg
+            ):
+                print(
+                    "CRITICAL: YouTube is blocking this IP. Cookies might be expired or invalid."
+                )
 
             # 字幕が取得できなかった場合、説明欄で代用する
             print(f"Falling back to description for video: {video_id}")
             description = self.get_video_description(video_id)
-            if description and len(description) > 50:
-                print(f"Using description as fallback for {video_id}")
-                return f"DESCRIPTION: {description}"
+            if description:
+                # チャンネルの定型文などを削除して、ニュースの内容が抽出されやすくする
+                # 「テレビ朝日がお届けする...」などの定型文以降をカットするか、
+                # もしくは冒頭のニュース項目っぽい部分だけ残す
+
+                # 典型的なANN説明文の後半（ボイラープレート）を削除
+                boilerplate_start = description.find(
+                    "テレビ朝日がお届けするニュース専門チャンネルです"
+                )
+                if boilerplate_start != -1:
+                    description = description[:boilerplate_start]
+
+                boilerplate_start2 = description.find("※ライブ配信のアーカイブです")
+                if boilerplate_start2 != -1:
+                    description = description[:boilerplate_start2]
+
+                if len(description.strip()) > 20:
+                    print(f"Using cleaned description as fallback for {video_id}")
+                    return f"DESCRIPTION: {description.strip()}"
 
             return None
