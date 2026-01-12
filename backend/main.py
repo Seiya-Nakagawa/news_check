@@ -131,15 +131,16 @@ def list_news(db: Session = Depends(get_db)):
     )
     result = []
     for v in videos:
+        # key_points テーブルから内容を取得
         key_points = [kp.point for kp in v.key_points]
         result.append(
             {
-                "id": v.youtube_id,  # Frontendの期待に合わせてIDを調整
+                "id": v.youtube_id,
                 "video_id": v.youtube_id,
                 "title": v.title,
                 "summary": v.summary,
                 "published_at": v.published_at.isoformat() if v.published_at else None,
-                "thumbnail": v.thumbnail_url,
+                "thumbnail": v.thumbnail_url,  # Frontend expects 'thumbnail'
                 "key_points": key_points,
             }
         )
