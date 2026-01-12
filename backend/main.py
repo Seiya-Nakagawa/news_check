@@ -78,6 +78,18 @@ def collect_news(db: Session = Depends(get_db)):
                 db_video.status = "unprocessed"
                 db.flush()
 
+        # データベースにある未処理の動画、または過去に要約失敗した動画をすべて処理する
+        # これにより、検索結果から消えた古い動画の再試行も可能になる
+        pending_videos = (
+            db.query(Video)
+            .filter(
+                (Video.status == "unprocessed")
+                | (Video.summary.like("%要約の生成に失敗しました%"))
+            )
+            .all()
+        )
+
+        for db_video in pending_videos:
             # 未処理、または前回の要約が失敗している場合に要約を行う
             should_summarize = db_video.status == "unprocessed" or (
                 db_video.summary and "要約の生成に失敗しました" in db_video.summary
@@ -99,7 +111,10 @@ def collect_news(db: Session = Depends(get_db)):
                     summary_data = summarizer.summarize(transcript)
                     db_video.summary = summary_data.get("summary")
 
-                    # 重要ポイントの保存
+                    # 重要ポイントの保存 (既存のものを削除して再作成)
+                    db.query(KeyPoint).filter(
+                        KeyPoint.youtube_id == db_video.youtube_id
+                    ).delete()
                     for pt in summary_data.get("key_points", []):
                         kp = KeyPoint(youtube_id=db_video.youtube_id, point=pt)
                         db.add(kp)
