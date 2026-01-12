@@ -1,14 +1,16 @@
+import json
 import os
+from typing import Dict
+
 from google import genai
 from google.genai import types
-from typing import List, Dict
-import json
+
 
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # Quota(429)回避のため、別枠の可能性がある gemini-2.0-flash-lite を使用
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-lite")
+        # テストで動作が確認された gemini-flash-latest をデフォルトに使用
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 
     def summarize(self, transcript: str) -> Dict:
         """
@@ -41,7 +43,7 @@ class Summarizer:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json"
-                )
+                ),
             )
             return json.loads(response.text)
         except Exception as e:
@@ -58,7 +60,7 @@ class Summarizer:
                         contents=prompt,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json"
-                        )
+                        ),
                     )
                     return json.loads(response.text)
                 except Exception as e2:
@@ -69,5 +71,5 @@ class Summarizer:
                 f.write(error_str + "\n")
             return {
                 "summary": f"要約の生成に失敗しました。({error_str[:60]}...)",
-                "key_points": []
+                "key_points": [],
             }
