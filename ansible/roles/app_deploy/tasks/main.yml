@@ -51,7 +51,7 @@
   cron:
     name: "Regular news collection"
     minute: "0" # 毎時0分
-    job: "curl -s http://localhost:8000/api/news/collect >> /var/log/news_check/cron.log 2>&1"
+    job: "curl -s -X POST http://localhost:8000/api/news/collect >> /var/log/news_check/cron.log 2>&1"
     user: "{{ ansible_user }}"
 
 - name: Start Docker Compose
