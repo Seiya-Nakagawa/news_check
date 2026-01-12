@@ -3,12 +3,12 @@ import time
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from models import Base, KeyPoint, Video
 from sqlalchemy.orm import Session
 from summarizer import Summarizer
 from youtube_client import YouTubeClient
 
-from database import SessionLocal, engine
+# 実際のファイル名 database.py に定義されているモデルをインポート
+from database import Base, KeyPoint, SessionLocal, Video, engine
 
 # テーブル作成
 Base.metadata.create_all(bind=engine)
@@ -44,29 +44,27 @@ def collect_news(db: Session = Depends(get_db)):
         channel_id = "UCGCZAYq59byoQDfGzU496OQ"
         videos = youtube_client.search_news_videos(channel_id)
 
-        # 1. YouTubeから見つかった動画をDBに保存（または更新）
+        # 1. YouTubeから見つかった動画をDBに保存
         for v in videos:
             db_video = db.query(Video).filter(Video.youtube_id == v["video_id"]).first()
             if not db_video:
                 db_video = Video(
                     youtube_id=v["video_id"],
                     title=v["title"],
-                    description=v["description"],
+                    channel_id=channel_id,
+                    thumbnail_url=v.get("thumbnail"),
                     published_at=v["published_at"],
-                    thumbnail=v["thumbnail"],
                     status="unprocessed",
                 )
                 db.add(db_video)
                 db.flush()
             elif db_video.status == "failed_transcript":
-                # 字幕取得に失敗していた場合は再試行対象にする
                 db_video.status = "unprocessed"
                 db.flush()
 
         db.commit()
 
         # 2. データベース内の「全ての未処理動画」を処理する
-        # YouTubeの検索結果（上位件数）から漏れた古い動画も、DBに残っていればここで処理される
         pending_videos = (
             db.query(Video)
             .filter(
@@ -94,9 +92,12 @@ def collect_news(db: Session = Depends(get_db)):
                     db_video.summary = summary_data.get("summary")
 
                     # 重要ポイントの保存（既存分を削除して更新）
-                    db.query(KeyPoint).filter(KeyPoint.video_id == db_video.id).delete()
-                    for point in summary_data.get("key_points", []):
-                        kp = KeyPoint(video_id=db_video.id, content=point)
+                    # models.py の定義に合わせて youtube_id と point カラムを使用
+                    db.query(KeyPoint).filter(
+                        KeyPoint.youtube_id == db_video.youtube_id
+                    ).delete()
+                    for pt in summary_data.get("key_points", []):
+                        kp = KeyPoint(youtube_id=db_video.youtube_id, point=pt)
                         db.add(kp)
 
                     db_video.status = "processed"
@@ -130,16 +131,16 @@ def list_news(db: Session = Depends(get_db)):
     )
     result = []
     for v in videos:
-        key_points = db.query(KeyPoint).filter(KeyPoint.video_id == v.id).all()
+        key_points = [kp.point for kp in v.key_points]
         result.append(
             {
-                "id": v.id,
+                "id": v.youtube_id,  # Frontendの期待に合わせてIDを調整
                 "video_id": v.youtube_id,
                 "title": v.title,
                 "summary": v.summary,
-                "published_at": v.published_at,
-                "thumbnail": v.thumbnail,
-                "key_points": [kp.content for kp in key_points],
+                "published_at": v.published_at.isoformat() if v.published_at else None,
+                "thumbnail": v.thumbnail_url,
+                "key_points": key_points,
             }
         )
     return result
