@@ -70,6 +70,9 @@ def collect_news(db: Session = Depends(get_db)):
             .filter(
                 (Video.status == "unprocessed")
                 | (Video.summary.like("%要約の生成に失敗しました%"))
+                | (Video.summary.like("この字幕テキストは%"))
+                | (Video.summary.like("このニュース動画は%"))
+                | (Video.summary.like("この動画は%"))
             )
             .all()
         )
