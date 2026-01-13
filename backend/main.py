@@ -73,6 +73,7 @@ def collect_news(db: Session = Depends(get_db)):
                 | (Video.summary.like("この字幕テキストは%"))
                 | (Video.summary.like("このニュース動画は%"))
                 | (Video.summary.like("この動画は%"))
+                | (Video.summary.like("提供されたテキストは%"))
             )
             .all()
         )
