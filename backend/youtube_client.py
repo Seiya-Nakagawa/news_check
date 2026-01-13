@@ -141,21 +141,34 @@ class YouTubeClient:
                 video_id, cookies=cookies
             )
 
-            # 日本語字幕を優先的に取得
+            # 字幕の選択ロジックを強化
             try:
+                # 1. 日本語字幕を優先 (手動・自動生成問わず)
                 transcript = transcript_list.find_transcript(["ja"])
             except:
-                # 日本語がない場合は自動翻訳を試みる
                 try:
-                    transcript = transcript_list.find_generated_transcript(["ja"])
+                    # 2. 他の言語（英語など）があれば日本語に翻訳
+                    transcript = transcript_list.find_transcript(["en"]).translate("ja")
                 except:
-                    # どちらもない場合は英語などを探す
+                    # 3. それでもダメなら、なんでもいいので日本語に翻訳を試みる
                     try:
-                        transcript = transcript_list.find_transcript(["en"])
+                        transcript = list(
+                            transcript_list._manually_created_transcripts.values()
+                        )[0].translate("ja")
                     except:
-                        print(f"No suitable transcript found for {video_id}")
-                        return None
+                        try:
+                            transcript = list(
+                                transcript_list._generated_transcripts.values()
+                            )[0].translate("ja")
+                        except:
+                            print(
+                                f"No suitable transcript or translatable captions found for {video_id}"
+                            )
+                            return None
 
+            print(
+                f"DEBUG: Found transcript for {video_id} (Language: {transcript.language}, Generated: {transcript.is_generated})"
+            )
             data = transcript.fetch()
             return " ".join([t["text"] for t in data])
 
