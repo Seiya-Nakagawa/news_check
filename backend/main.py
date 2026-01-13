@@ -41,7 +41,7 @@ def collect_news(db: Session = Depends(get_db)):
         summarizer = Summarizer(os.getenv("GEMINI_API_KEY"))
 
         # ANNnewsCH のチャンネルID
-        channel_id = "UCGCZAYq59byoQDfGzU496OQ"
+        channel_id = "UCGCZAYq5Xxojl_tSXcVJhiQ"
         videos = youtube_client.search_news_videos(channel_id)
 
         # 1. YouTubeから見つかった動画をDBに保存
