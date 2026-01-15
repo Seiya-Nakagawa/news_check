@@ -176,6 +176,14 @@ class YouTubeClient:
             error_msg = str(e)
             print(f"Error fetching transcript for {video_id}: {error_msg}")
 
+            # 字幕が無効化されている場合は、説明文にフォールバックせずにNoneを返す
+            if (
+                "Subtitles are disabled" in error_msg
+                or "TranscriptsDisabled" in error_msg
+            ):
+                print(f"Subtitles are disabled for video: {video_id}. Skipping.")
+                return None
+
             # IPブロックの場合の特別メッセージ
             if (
                 "YouTube is blocking requests from your IP" in error_msg
@@ -184,28 +192,8 @@ class YouTubeClient:
                 print(
                     "CRITICAL: YouTube is blocking this IP. Cookies might be expired or invalid."
                 )
+                return None
 
-            # 字幕が取得できなかった場合、説明欄で代用する
-            print(f"Falling back to description for video: {video_id}")
-            description = self.get_video_description(video_id)
-            if description:
-                # チャンネルの定型文などを削除して、ニュースの内容が抽出されやすくする
-                # 「テレビ朝日がお届けする...」などの定型文以降をカットするか、
-                # もしくは冒頭のニュース項目っぽい部分だけ残す
-
-                # 典型的なANN説明文の後半（ボイラープレート）を削除
-                boilerplate_start = description.find(
-                    "テレビ朝日がお届けするニュース専門チャンネルです"
-                )
-                if boilerplate_start != -1:
-                    description = description[:boilerplate_start]
-
-                boilerplate_start2 = description.find("※ライブ配信のアーカイブです")
-                if boilerplate_start2 != -1:
-                    description = description[:boilerplate_start2]
-
-                if len(description.strip()) > 20:
-                    print(f"Using cleaned description as fallback for {video_id}")
-                    return f"DESCRIPTION: {description.strip()}"
-
+            # その他のエラーの場合もNoneを返す（説明文へのフォールバックを削除）
+            print(f"Could not fetch transcript for {video_id}. Skipping.")
             return None
