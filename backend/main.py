@@ -97,6 +97,15 @@ def collect_news(db: Session = Depends(get_db)):
                             db_video.transcript = new_transcript
                             transcript = new_transcript
 
+                # 字幕が取得できず、説明文のみの場合はスキップ
+                if transcript and transcript.startswith("DESCRIPTION:"):
+                    print(
+                        f"Skipping {db_video.youtube_id}: Only description available, no real transcript"
+                    )
+                    db_video.status = "failed_transcript"
+                    db.commit()
+                    continue
+
                 if transcript:
                     # 前回の要約が失敗、または説明文ベースで低品質な場合に再試行する
                     is_bad_summary = (
@@ -109,8 +118,8 @@ def collect_news(db: Session = Depends(get_db)):
                     )
 
                     if is_bad_summary:
-                        # API制限回避
-                        time.sleep(5)
+                        # API制限回避 (Free Tier: 15 RPM / 1M TPM)
+                        time.sleep(12)
 
                         # AI要約の生成
                         summary_data = summarizer.summarize(transcript)
@@ -129,6 +138,9 @@ def collect_news(db: Session = Depends(get_db)):
                         db.commit()
                         processed_count += 1
                 else:
+                    print(
+                        f"Skipping {db_video.youtube_id}: No transcript available (subtitles disabled or unavailable)"
+                    )
                     db_video.status = "failed_transcript"
                     db.commit()
             except Exception as e:
