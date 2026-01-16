@@ -55,7 +55,7 @@ class YouTubeClient:
         playlist_request = self.youtube.playlistItems().list(
             part="snippet,contentDetails",
             playlistId=uploads_playlist_id,
-            maxResults=15,
+            maxResults=50,
         )
         playlist_response = playlist_request.execute()
 
