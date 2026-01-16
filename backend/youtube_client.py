@@ -37,26 +37,45 @@ class YouTubeClient:
             print(f"Error fetching description for {video_id}: {e}")
             return None
 
-    def search_news_videos(self, channel_id: str):
-        """特定のチャンネルからニュース動画を検索する"""
-        # ANNnewsCH の形式「【ライブ】」を含む動画を検索
-        # 日付指定を外して、直近のニュースも取得できるようにする
-        search_query = "【ライブ】"
+    def get_uploads_playlist_id(self, channel_id: str) -> str:
+        """チャンネルIDからアップロード済み動画のプレイリストIDを取得する"""
+        request = self.youtube.channels().list(part="contentDetails", id=channel_id)
+        response = request.execute()
+        items = response.get("items", [])
+        if not items:
+            raise Exception(f"Channel not found: {channel_id}")
+        return items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
 
-        request = self.youtube.search().list(
-            part="snippet",
-            channelId=channel_id,
-            q=search_query,
-            type="video",
-            order="date",
+    def search_news_videos(self, channel_id: str):
+        """特定のチャンネルから最新のニュース動画を効率的に取得する (Quota節約版)"""
+        # 1. アップロード済み動画のプレイリストIDを取得 (1 unit)
+        uploads_playlist_id = self.get_uploads_playlist_id(channel_id)
+
+        # 2. プレイリストから最新の動画一覧を取得 (1 unit)
+        playlist_request = self.youtube.playlistItems().list(
+            part="snippet,contentDetails",
+            playlistId=uploads_playlist_id,
             maxResults=15,
         )
-        response = request.execute()
+        playlist_response = playlist_request.execute()
+
+        video_ids = [
+            item["contentDetails"]["videoId"]
+            for item in playlist_response.get("items", [])
+        ]
+        if not video_ids:
+            return []
+
+        # 3. 動画の属性詳細を一括取得してフィルタリング (1 unit)
+        videos_request = self.youtube.videos().list(
+            part="snippet", id=",".join(video_ids)
+        )
+        videos_response = videos_request.execute()
 
         videos = []
         seen_ids = set()
-        for item in response.get("items", []):
-            video_id = item["id"]["videoId"]
+        for item in videos_response.get("items", []):
+            video_id = item["id"]
             title = item["snippet"]["title"]
 
             # #shorts は除外する
@@ -76,7 +95,6 @@ class YouTubeClient:
                 continue
 
             # 未来の日付のニュースを除外する (タイトルに含まれる日付を確認)
-            # 例: 今が 1/11 なのにタイトルが 1/12 の場合は除外
             date_match = re.search(r"(\d{1,2})/(\d{1,2})", title)
             if date_match:
                 try:
@@ -108,7 +126,6 @@ class YouTubeClient:
                     if title_date > today:
                         continue
                 except (ValueError, OverflowError):
-                    # 不正な日付形式などは無視して次へ
                     pass
 
             if video_id not in seen_ids:
