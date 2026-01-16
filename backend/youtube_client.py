@@ -82,9 +82,8 @@ class YouTubeClient:
             if "#shorts" in title.lower():
                 continue
 
-            # タイトルが「【ライブ】mm/dd」の形式で始まっているか確認する
-            # 例: 【ライブ】1/11 ANNニュース...
-            if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}", title):
+            # タイトルが「【ライブ】mm/dd 朝ニュースまとめ」の形式で始まっているか確認する
+            if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}\s+朝ニュースまとめ", title):
                 continue
 
             # 配信状況を確認し、アーカイブ（VOD）以外は除外する
