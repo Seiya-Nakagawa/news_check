@@ -1,3 +1,4 @@
+import os
 import random
 import re
 import time
@@ -128,12 +129,36 @@ class YouTubeClient:
         """動画の字幕を取得する"""
         try:
             # 429回避のための待機 (ランダム化)
-            sleep_time = random.uniform(5.0, 10.0)
+            sleep_time = random.uniform(5.0, 15.0)  # さらに延長
             print(f"DEBUG: Sleeping for {sleep_time:.2f}s...")
             time.sleep(sleep_time)
 
-            # v1.2.3: 匿名アクセスを使用 (Cookiesが無効な可能性があるため)
-            api = YouTubeTranscriptApi()
+            # v1.2.3: requests.Sessionを使用してクッキーとUser-Agentを適用
+            import http.cookiejar
+
+            import requests
+
+            session = requests.Session()
+            # 一般的なブラウザのUser-Agentを設定
+            session.headers.update(
+                {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+            )
+
+            cookies_path = "/app/cookies.txt"
+            if os.path.exists(cookies_path):
+                print(f"DEBUG: Loading cookies from {cookies_path}")
+                try:
+                    cj = http.cookiejar.MozillaCookieJar(cookies_path)
+                    cj.load(ignore_discard=True, ignore_expires=True)
+                    session.cookies = cj
+                except Exception as e:
+                    print(f"DEBUG: Failed to load cookies: {e}")
+            else:
+                print("DEBUG: No cookies.txt found, proceeding without authentication")
+
+            api = YouTubeTranscriptApi(http_client=session)
 
             # 利用可能な字幕一覧を取得
             transcript_list = api.list(video_id)
