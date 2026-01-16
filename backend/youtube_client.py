@@ -1,4 +1,4 @@
-import os
+import random
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -127,19 +127,16 @@ class YouTubeClient:
     def get_transcript(self, video_id: str) -> Optional[str]:
         """動画の字幕を取得する"""
         try:
-            # 429回避のための待機
-            time.sleep(3.0)
-            # Cookieファイルの確認
-            cookies = "/app/cookies.txt"
-            if not os.path.exists(cookies):
-                cookies = None
-            else:
-                print(f"DEBUG: Using cookies from {cookies}")
+            # 429回避のための待機 (ランダム化)
+            sleep_time = random.uniform(5.0, 10.0)
+            print(f"DEBUG: Sleeping for {sleep_time:.2f}s...")
+            time.sleep(sleep_time)
+
+            # v1.2.3: 匿名アクセスを使用 (Cookiesが無効な可能性があるため)
+            api = YouTubeTranscriptApi()
 
             # 利用可能な字幕一覧を取得
-            transcript_list = YouTubeTranscriptApi.list_transcripts(
-                video_id, cookies=cookies
-            )
+            transcript_list = api.list(video_id)
 
             # 字幕の選択ロジックを強化
             try:
@@ -170,7 +167,7 @@ class YouTubeClient:
                 f"DEBUG: Found transcript for {video_id} (Language: {transcript.language}, Generated: {transcript.is_generated})"
             )
             data = transcript.fetch()
-            return " ".join([t["text"] for t in data])
+            return " ".join([t.text for t in data])
 
         except Exception as e:
             error_msg = str(e)
