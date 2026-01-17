@@ -6,9 +6,9 @@ python-dotenv
 sqlalchemy
 alembic
 pydantic-settings
-google-api-python-client
 youtube-transcript-api==1.2.3
 requests
+feedparser
 APScheduler
 pytest
 httpx

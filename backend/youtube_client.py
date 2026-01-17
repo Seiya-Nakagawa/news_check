@@ -5,92 +5,52 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from googleapiclient.discovery import build
+import feedparser
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
 class YouTubeClient:
-    def __init__(self, api_key: str):
-        self.youtube = build(
-            "youtube", "v3", developerKey=api_key, static_discovery=False
-        )
-
-    def get_channel_id(self, handle: str) -> str:
-        """ハンドル名からチャンネルIDを取得する"""
-        request = self.youtube.channels().list(part="id", forHandle=handle)
-        response = request.execute()
-        items = response.get("items", [])
-        if not items:
-            raise Exception(f"Channel not found for handle: {handle}")
-        return items[0]["id"]
-
-    def get_video_description(self, video_id: str) -> Optional[str]:
-        """動画の説明欄を取得する"""
-        try:
-            request = self.youtube.videos().list(part="snippet", id=video_id)
-            response = request.execute()
-            items = response.get("items", [])
-            if items:
-                return items[0]["snippet"]["description"]
-            return None
-        except Exception as e:
-            print(f"Error fetching description for {video_id}: {e}")
-            return None
-
-    def get_uploads_playlist_id(self, channel_id: str) -> str:
-        """チャンネルIDからアップロード済み動画のプレイリストIDを取得する"""
-        request = self.youtube.channels().list(part="contentDetails", id=channel_id)
-        response = request.execute()
-        items = response.get("items", [])
-        if not items:
-            raise Exception(f"Channel not found: {channel_id}")
-        return items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    def __init__(self, api_key: str = None):
+        """
+        YouTubeクライアントの初期化
+        api_key: 現在は使用していないが、互換性のために残している
+        """
+        pass
 
     def search_news_videos(self, channel_id: str):
-        """特定のチャンネルから最新のニュース動画を効率的に取得する (Quota節約版)"""
-        # 1. アップロード済み動画のプレイリストIDを取得 (1 unit)
-        uploads_playlist_id = self.get_uploads_playlist_id(channel_id)
+        """RSSフィードから最新のニュース動画を取得する (APIクォータ消費ゼロ)"""
+        # YouTube公式RSSフィードのURL
+        rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 
-        # 2. プレイリストから最新の動画一覧を取得 (1 unit)
-        playlist_request = self.youtube.playlistItems().list(
-            part="snippet,contentDetails",
-            playlistId=uploads_playlist_id,
-            maxResults=50,
-        )
-        playlist_response = playlist_request.execute()
+        # RSSフィードを取得
+        feed = feedparser.parse(rss_url)
 
-        video_ids = [
-            item["contentDetails"]["videoId"]
-            for item in playlist_response.get("items", [])
-        ]
-        if not video_ids:
+        if not feed.entries:
+            print(f"No entries found in RSS feed for channel: {channel_id}")
             return []
-
-        # 3. 動画の属性詳細を一括取得してフィルタリング (1 unit)
-        videos_request = self.youtube.videos().list(
-            part="snippet", id=",".join(video_ids)
-        )
-        videos_response = videos_request.execute()
 
         videos = []
         seen_ids = set()
-        for item in videos_response.get("items", []):
-            video_id = item["id"]
-            title = item["snippet"]["title"]
+
+        # 日本時間 (JST) で現在時刻を取得
+        jst = timezone(timedelta(hours=9))
+        now = datetime.now(jst)
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        for entry in feed.entries:
+            # 動画IDを抽出 (yt:videoId タグから)
+            video_id = entry.yt_videoid if hasattr(entry, 'yt_videoid') else None
+            if not video_id:
+                continue
+
+            title = entry.title
 
             # #shorts は除外する
             if "#shorts" in title.lower():
                 continue
 
-            # タイトルが「【ライブ】mm/dd 朝ニュースまとめ」の形式で始まっているか確認する
-            if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}\s+朝ニュースまとめ", title):
-                continue
-
-            # 配信状況を確認し、アーカイブ（VOD）以外は除外する
-            # liveBroadcastContent: 'upcoming', 'live', 'none'
-            live_broadcast_content = item["snippet"].get("liveBroadcastContent", "none")
-            if live_broadcast_content != "none":
-                # 'upcoming' (配信予定) や 'live' (配信中) は除外
+            # タイトルが「【ライブ】mm/dd 朝ニュースまとめ」「【ライブ】mm/dd 昼ニュースまとめ」「【ライブ】mm/dd 夜ニュースまとめ」のいずれかに一致するか確認
+            if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}\s+(朝|昼|夜)ニュースまとめ", title):
                 continue
 
             # 未来の日付のニュースを除外する (タイトルに含まれる日付を確認)
@@ -99,10 +59,6 @@ class YouTubeClient:
                 try:
                     title_month = int(date_match.group(1))
                     title_day = int(date_match.group(2))
-
-                    # 日本時間 (JST) で現在時刻を取得
-                    jst = timezone(timedelta(hours=9))
-                    now = datetime.now(jst)
 
                     # タイトルの日付を現在と同じ年として仮定
                     title_date = now.replace(
@@ -121,24 +77,36 @@ class YouTubeClient:
                         title_date = title_date.replace(year=now.year + 1)
 
                     # 日付のみで比較（今日より後の日付ならスキップ）
-                    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
                     if title_date > today:
                         continue
                 except (ValueError, OverflowError):
                     pass
 
+            # 重複チェック
             if video_id not in seen_ids:
+                # サムネイルURLを取得 (media:group > media:thumbnail)
+                thumbnail_url = None
+                if hasattr(entry, 'media_thumbnail'):
+                    thumbnail_url = entry.media_thumbnail[0]['url'] if entry.media_thumbnail else None
+
+                # 公開日時を取得
+                published_at = entry.published if hasattr(entry, 'published') else None
+
+                # 説明文を取得
+                description = entry.summary if hasattr(entry, 'summary') else ""
+
                 videos.append(
                     {
                         "video_id": video_id,
                         "title": title,
-                        "description": item["snippet"]["description"],
-                        "published_at": item["snippet"]["publishedAt"],
-                        "thumbnail": item["snippet"]["thumbnails"]["high"]["url"],
+                        "description": description,
+                        "published_at": published_at,
+                        "thumbnail": thumbnail_url,
                     }
                 )
                 seen_ids.add(video_id)
 
+        print(f"Found {len(videos)} news videos from RSS feed")
         return videos
 
     def get_transcript(self, video_id: str) -> Optional[str]:
