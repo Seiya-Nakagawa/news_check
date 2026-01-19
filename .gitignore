@@ -22,4 +22,6 @@ Thumbs.db
 # Terraform
 .terraform/
 *.tfstate
-*.tfstate.*
+
+# Cookies
+backend/cookies.txt
