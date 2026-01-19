@@ -1,0 +1,39 @@
+name: App Deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "nginx/**"
+      - "docker-compose.yml"
+      - "ansible/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Run Playbook
+        run: |
+          ansible-playbook -i ansible/inventory/hosts.yml ansible/playbook.yml \
+            --limit prod \
+            --extra-vars "ansible_ssh_private_key_file=~/.ssh/id_rsa"
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
