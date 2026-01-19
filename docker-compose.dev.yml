@@ -17,9 +17,3 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
     command: npm run dev -- -H 0.0.0.0
-
-  # スケジューラ (定期実行) - 開発用設定
-  scheduler:
-    volumes:
-      - ./backend:/app
-    command: python scheduler.py
