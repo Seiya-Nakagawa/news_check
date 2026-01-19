@@ -17,10 +17,13 @@
 ## 2. 開発環境の操作
 
 * **コンテナ起動**:
+
   ```bash
   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
   ```
+
 * **コンテナ停止**:
+
   ```bash
   docker compose -f docker-compose.yml -f docker-compose.dev.yml down
   ```
