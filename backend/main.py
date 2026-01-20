@@ -3,12 +3,19 @@ import time
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from nhk_client import NHKNewsClient
 from sqlalchemy.orm import Session
 from summarizer import Summarizer
-from youtube_client import YouTubeClient
 
 # 実際のファイル名 database.py に定義されているモデルをインポート
-from database import Base, KeyPoint, SessionLocal, Video, engine
+from database import (
+    Article,
+    ArticleKeyPoint,
+    Base,
+    SessionLocal,
+    Video,
+    engine,
+)
 
 # テーブル作成
 Base.metadata.create_all(bind=engine)
@@ -35,122 +42,95 @@ def get_db():
 
 @app.post("/api/news/collect")
 def collect_news(db: Session = Depends(get_db)):
-    """YouTubeからニュースを取得し、要約してDBに保存する"""
+    """NHKニュースRSSから記事を取得し、要約してDBに保存する"""
     try:
-        youtube_client = YouTubeClient(os.getenv("YOUTUBE_API_KEY"))
+        nhk_client = NHKNewsClient()
         summarizer = Summarizer(os.getenv("GEMINI_API_KEY"))
 
-        # ANNnewsCH のチャンネルID
-        channel_id = "UCGCZAYq5Xxojl_tSXcVJhiQ"
-        videos = youtube_client.search_news_videos(channel_id)
+        # NHK RSSから記事を取得
+        articles = nhk_client.fetch_news(categories=["main"], max_articles=20)
 
-        # 1. YouTubeから見つかった動画をDBに保存
-        for v in videos:
-            db_video = db.query(Video).filter(Video.youtube_id == v["video_id"]).first()
-            if not db_video:
-                db_video = Video(
-                    youtube_id=v["video_id"],
-                    title=v["title"],
-                    channel_id=channel_id,
-                    thumbnail_url=v.get("thumbnail"),
-                    published_at=v["published_at"],
+        # 1. RSSから見つかった記事をDBに保存
+        new_count = 0
+        for a in articles:
+            db_article = (
+                db.query(Article).filter(Article.article_id == a["article_id"]).first()
+            )
+            if not db_article:
+                db_article = Article(
+                    article_id=a["article_id"],
+                    title=a["title"],
+                    link=a["link"],
+                    description=a["description"],
+                    category=a.get("category"),
+                    source=a.get("source", "NHK"),
+                    published_at=a["published_at"],
                     status="unprocessed",
                 )
-                db.add(db_video)
-                db.flush()
-            elif db_video.status == "failed_transcript":
-                db_video.status = "unprocessed"
-                db.flush()
-
+                db.add(db_article)
+                new_count += 1
         db.commit()
 
-        # 2. データベース内の「全ての未処理動画」を処理する
-        pending_videos = (
-            db.query(Video)
+        # 2. データベース内の「全ての未処理記事」を処理する
+        pending_articles = (
+            db.query(Article)
             .filter(
-                (Video.status == "unprocessed")
-                | (Video.summary.like("%要約の生成に失敗しました%"))
-                | (Video.summary.like("この字幕テキストは%"))
-                | (Video.summary.like("このニュース動画は%"))
-                | (Video.summary.like("この動画は%"))
-                | (Video.summary.like("提供されたテキストは%"))
+                (Article.status == "unprocessed")
+                | (Article.summary.like("%要約の生成に失敗しました%"))
             )
             .all()
         )
 
         processed_count = 0
-        for db_video in pending_videos:
+        for db_article in pending_articles:
             try:
-                # すでに字幕を持っているが DESCRIPTION Fallback の場合、再度字幕取得を試みる（復活の可能性）
-                is_fallback = db_video.transcript and db_video.transcript.startswith(
-                    "DESCRIPTION:"
-                )
-                transcript = db_video.transcript
+                # 要約に使うテキストを用意 (description または content)
+                text_to_summarize = db_article.description or ""
 
-                if not transcript or is_fallback:
-                    new_transcript = youtube_client.get_transcript(db_video.youtube_id)
-                    if new_transcript:
-                        # 新しく取得できた場合は上書き (fallback から real への昇格を優先)
-                        if not is_fallback or not new_transcript.startswith(
-                            "DESCRIPTION:"
-                        ):
-                            db_video.transcript = new_transcript
-                            transcript = new_transcript
-
-                # 字幕が取得できず、説明文のみの場合はスキップ
-                if transcript and transcript.startswith("DESCRIPTION:"):
-                    print(
-                        f"Skipping {db_video.youtube_id}: Only description available, no real transcript"
-                    )
-                    db_video.status = "failed_transcript"
-                    db.commit()
-                    continue
-
-                if transcript:
-                    # 前回の要約が失敗、または説明文ベースで低品質な場合に再試行する
-                    is_bad_summary = (
-                        not db_video.summary
-                        or "要約の生成に失敗しました" in db_video.summary
-                        or "この字幕テキストは" in db_video.summary
-                        or "このニュース動画は"
-                        in db_video.summary  # 定型的なAIの回答を弾く
-                        or "この動画は" in db_video.summary[:20]
-                    )
-
-                    if is_bad_summary:
-                        # API制限回避 (Free Tier: 15 RPM / 1M TPM)
-                        time.sleep(12)
-
-                        # AI要約の生成
-                        summary_data = summarizer.summarize(transcript)
-                        db_video.summary = summary_data.get("summary")
-
-                        # 重要ポイントの保存（既存分を削除して更新）
-                        # models.py の定義に合わせて youtube_id と point カラムを使用
-                        db.query(KeyPoint).filter(
-                            KeyPoint.youtube_id == db_video.youtube_id
-                        ).delete()
-                        for pt in summary_data.get("key_points", []):
-                            kp = KeyPoint(youtube_id=db_video.youtube_id, point=pt)
-                            db.add(kp)
-
-                        db_video.status = "processed"
+                # contentがまだなく、descriptionが短い場合は記事本文を取得
+                if not db_article.content and len(text_to_summarize) < 200:
+                    content = nhk_client.fetch_article_content(db_article.link)
+                    if content:
+                        db_article.content = content
+                        text_to_summarize = content
                         db.commit()
-                        processed_count += 1
+
+                # テキストがあれば要約を生成
+                if text_to_summarize and len(text_to_summarize) > 50:
+                    # API制限回避 (Free Tier: 15 RPM / 1M TPM)
+                    time.sleep(5)
+
+                    # AI要約の生成
+                    summary_data = summarizer.summarize_article(text_to_summarize)
+                    db_article.summary = summary_data.get("summary")
+
+                    # 重要ポイントの保存（既存分を削除して更新）
+                    db.query(ArticleKeyPoint).filter(
+                        ArticleKeyPoint.article_id == db_article.article_id
+                    ).delete()
+                    for pt in summary_data.get("key_points", []):
+                        kp = ArticleKeyPoint(article_id=db_article.article_id, point=pt)
+                        db.add(kp)
+
+                    db_article.status = "processed"
+                    db.commit()
+                    processed_count += 1
                 else:
                     print(
-                        f"Skipping {db_video.youtube_id}: No transcript available (subtitles disabled or unavailable)"
+                        f"Skipping {db_article.article_id}: Insufficient text for summarization"
                     )
-                    db_video.status = "failed_transcript"
+                    db_article.status = "skipped"
                     db.commit()
+
             except Exception as e:
-                print(f"Error processing {db_video.youtube_id}: {e}")
+                print(f"Error processing {db_article.article_id}: {e}")
                 db.rollback()
 
         return {
             "status": "success",
-            "processed_videos": processed_count,
-            "total_found": len(videos),
+            "processed_articles": processed_count,
+            "new_articles": new_count,
+            "total_found": len(articles),
         }
     except Exception as e:
         print(f"Global error in collect_news: {e}")
@@ -159,7 +139,76 @@ def collect_news(db: Session = Depends(get_db)):
 
 @app.get("/api/news/list")
 def list_news(db: Session = Depends(get_db)):
-    """要約済みのニュース一覧を取得"""
+    """要約済みのニュース一覧を取得 (NHK記事を優先、なければYouTube動画)"""
+    result = []
+
+    # NHK記事を取得
+    articles = (
+        db.query(Article)
+        .filter(Article.status == "processed")
+        .order_by(Article.published_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    for a in articles:
+        key_points = [kp.point for kp in a.key_points]
+        result.append(
+            {
+                "id": a.article_id,
+                "title": a.title,
+                "summary": a.summary,
+                "published_at": a.published_at.isoformat() if a.published_at else None,
+                "link": a.link,
+                "source": a.source,
+                "category": a.category,
+                "status": a.status,
+                "key_points": key_points,
+                "type": "article",
+            }
+        )
+
+    # NHK記事が少ない場合、YouTube動画も含める (後方互換性)
+    if len(result) < 10:
+        videos = (
+            db.query(Video)
+            .filter(Video.status == "processed")
+            .order_by(Video.published_at.desc())
+            .limit(20)
+            .all()
+        )
+        for v in videos:
+            key_points = [kp.point for kp in v.key_points]
+            result.append(
+                {
+                    "id": v.youtube_id,
+                    "youtube_id": v.youtube_id,
+                    "title": v.title,
+                    "summary": v.summary,
+                    "published_at": (
+                        v.published_at.isoformat() if v.published_at else None
+                    ),
+                    "thumbnail_url": v.thumbnail_url,
+                    "status": v.status,
+                    "key_points": key_points,
+                    "type": "video",
+                }
+            )
+
+    # 公開日時でソート
+    result.sort(key=lambda x: x.get("published_at") or "", reverse=True)
+
+    return result
+
+
+# =====================================================
+# 旧YouTube用エンドポイント (後方互換性のため残す)
+# =====================================================
+
+
+@app.get("/api/news/videos")
+def list_videos(db: Session = Depends(get_db)):
+    """要約済みのYouTube動画一覧を取得 (旧API)"""
     videos = (
         db.query(Video)
         .filter(Video.status == "processed")
@@ -168,7 +217,6 @@ def list_news(db: Session = Depends(get_db)):
     )
     result = []
     for v in videos:
-        # key_points テーブルから内容を取得
         key_points = [kp.point for kp in v.key_points]
         result.append(
             {

@@ -14,7 +14,7 @@ class Summarizer:
 
     def summarize(self, transcript: str) -> Dict:
         """
-        Gemini APIを使用して字幕を要約する。
+        Gemini APIを使用して字幕を要約する。(YouTube動画用)
         """
         prompt = f"""
 あなたはプロのニュース編集者です。提供された「YouTubeニュース動画のテキスト（字幕または説明文）」を解析し、視聴者が短時間で内容を把握できる高品質な要約を作成してください。
@@ -39,6 +39,38 @@ class Summarizer:
 対象のテキスト:
 {transcript}
 """
+        return self._generate_summary(prompt)
+
+    def summarize_article(self, article_text: str) -> Dict:
+        """
+        Gemini APIを使用してニュース記事を要約する。(NHKニュース等のテキスト記事用)
+        """
+        prompt = f"""
+あなたはプロのニュース編集者です。提供された「ニュース記事のテキスト」を解析し、読者が短時間で内容を把握できる高品質な要約を作成してください。
+
+【注意点】
+- 記事の具体的な「事実（事件、事故、政治、経済、気象、国際情勢など）」にのみ焦点を当ててください。
+- 5W1H（いつ、どこで、誰が、何を、なぜ、どのように）を意識した要約を心がけてください。
+- 重要ポイントは3〜5項目程度に絞ってください。
+
+【出力形式】
+以下のJSON形式で出力してください。
+{{
+  "summary": "記事の内容を掴むための簡潔な要約（200〜300文字程度）。事実に基づいた具体的な内容にすること。",
+  "key_points": [
+    "重要ポイント1",
+    "重要ポイント2",
+    "重要ポイント3"
+  ]
+}}
+
+対象の記事テキスト:
+{article_text}
+"""
+        return self._generate_summary(prompt)
+
+    def _generate_summary(self, prompt: str) -> Dict:
+        """Gemini APIを呼び出して要約を生成する共通処理"""
         try:
             # プレフィックスなしで試行
             response = self.client.models.generate_content(

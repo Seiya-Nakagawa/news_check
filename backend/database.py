@@ -29,6 +29,8 @@ class Channel(Base):
 
 
 class Video(Base):
+    """YouTube動画用モデル (旧システム、後方互換性のため残す)"""
+
     __tablename__ = "videos"
     youtube_id = Column(String, primary_key=True)
     title = Column(String, nullable=False)
@@ -53,6 +55,43 @@ class KeyPoint(Base):
     point = Column(Text, nullable=False)
 
     video = relationship("Video", back_populates="key_points")
+
+
+# =====================================================
+# NHKニュース記事用の新モデル
+# =====================================================
+
+
+class Article(Base):
+    """NHKニュース記事用モデル"""
+
+    __tablename__ = "articles"
+    article_id = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    link = Column(String, nullable=False)
+    description = Column(Text)  # RSSのdescription (概要)
+    content = Column(Text)  # 記事本文 (スクレイピングで取得)
+    summary = Column(Text)  # Geminiによる要約
+    category = Column(String)  # ニュースカテゴリ
+    source = Column(String, default="NHK")  # ニュースソース
+    published_at = Column(DateTime(timezone=True))
+    status = Column(String, default="unprocessed")
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+    key_points = relationship(
+        "ArticleKeyPoint", back_populates="article", cascade="all, delete-orphan"
+    )
+
+
+class ArticleKeyPoint(Base):
+    """NHKニュース記事の重要ポイント"""
+
+    __tablename__ = "article_key_points"
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(String, ForeignKey("articles.article_id"))
+    point = Column(Text, nullable=False)
+
+    article = relationship("Article", back_populates="key_points")
 
 
 def get_db():
