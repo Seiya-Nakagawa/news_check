@@ -39,7 +39,7 @@ class YouTubeClient:
 
         for entry in feed.entries:
             # 動画IDを抽出 (yt:videoId タグから)
-            video_id = entry.yt_videoid if hasattr(entry, 'yt_videoid') else None
+            video_id = entry.yt_videoid if hasattr(entry, "yt_videoid") else None
             if not video_id:
                 continue
 
@@ -50,7 +50,9 @@ class YouTubeClient:
                 continue
 
             # タイトルが「【ライブ】mm/dd 朝ニュースまとめ」「【ライブ】mm/dd 昼ニュースまとめ」「【ライブ】mm/dd 夜ニュースまとめ」のいずれかに一致するか確認
-            if not re.match(r"^【ライブ】\d{1,2}/\d{1,2}\s+(朝|昼|夜)ニュースまとめ", title):
+            if not re.match(
+                r"^【ライブ】\d{1,2}/\d{1,2}\s+(朝|昼|夜)ニュースまとめ", title
+            ):
                 continue
 
             # 未来の日付のニュースを除外する (タイトルに含まれる日付を確認)
@@ -86,14 +88,18 @@ class YouTubeClient:
             if video_id not in seen_ids:
                 # サムネイルURLを取得 (media:group > media:thumbnail)
                 thumbnail_url = None
-                if hasattr(entry, 'media_thumbnail'):
-                    thumbnail_url = entry.media_thumbnail[0]['url'] if entry.media_thumbnail else None
+                if hasattr(entry, "media_thumbnail"):
+                    thumbnail_url = (
+                        entry.media_thumbnail[0]["url"]
+                        if entry.media_thumbnail
+                        else None
+                    )
 
                 # 公開日時を取得
-                published_at = entry.published if hasattr(entry, 'published') else None
+                published_at = entry.published if hasattr(entry, "published") else None
 
                 # 説明文を取得
-                description = entry.summary if hasattr(entry, 'summary') else ""
+                description = entry.summary if hasattr(entry, "summary") else ""
 
                 videos.append(
                     {
@@ -123,12 +129,18 @@ class YouTubeClient:
             import requests
 
             session = requests.Session()
-            # 一般的なブラウザのUser-Agentを設定
-            session.headers.update(
-                {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                }
-            )
+            # ランダムなUser-Agentを選択してブロックを回避しやすくする
+            user_agents = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+            ]
+            ua = random.choice(user_agents)
+            session.headers.update({"User-Agent": ua})
+            print(f"DEBUG: Using User-Agent: {ua}")
 
             cookies_path = "/app/cookies.txt"
             if os.path.exists(cookies_path):
@@ -151,22 +163,22 @@ class YouTubeClient:
             try:
                 # 1. 日本語字幕を優先 (手動・自動生成問わず)
                 transcript = transcript_list.find_transcript(["ja"])
-            except:
+            except Exception:
                 try:
                     # 2. 他の言語（英語など）があれば日本語に翻訳
                     transcript = transcript_list.find_transcript(["en"]).translate("ja")
-                except:
+                except Exception:
                     # 3. それでもダメなら、なんでもいいので日本語に翻訳を試みる
                     try:
                         transcript = list(
                             transcript_list._manually_created_transcripts.values()
                         )[0].translate("ja")
-                    except:
+                    except Exception:
                         try:
                             transcript = list(
                                 transcript_list._generated_transcripts.values()
                             )[0].translate("ja")
-                        except:
+                        except Exception:
                             print(
                                 f"No suitable transcript or translatable captions found for {video_id}"
                             )
