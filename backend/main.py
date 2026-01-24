@@ -97,8 +97,9 @@ def collect_news(db: Session = Depends(get_db)):
 
                 # テキストがあれば要約を生成
                 if text_to_summarize and len(text_to_summarize) > 50:
-                    # API制限回避 (Free Tier: 15 RPM / 1M TPM)
-                    time.sleep(5)
+                    # API制限回避
+                    # Free Tier: 15 RPM (4秒間隔以上) だが、1日20回制限を考慮して15秒間隔に延長
+                    time.sleep(15)
 
                     # AI要約の生成
                     summary_data = summarizer.summarize_article(text_to_summarize)
@@ -115,6 +116,11 @@ def collect_news(db: Session = Depends(get_db)):
                     db_article.status = "processed"
                     db.commit()
                     processed_count += 1
+
+                    # 1回の実行での上限を厳しく設定 (1日20回制限のため)
+                    if processed_count >= 2:
+                        print("Reached processing limit for this run.")
+                        break
                 else:
                     print(
                         f"Skipping {db_article.article_id}: Insufficient text for summarization"

@@ -1,5 +1,7 @@
 import json
 import os
+import random
+import time
 from typing import Dict
 
 from google import genai
@@ -9,8 +11,8 @@ from google.genai import types
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # テストで動作が確認された gemini-flash-latest をデフォルトに使用
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+        # 現時点で動作とクォータが確認できた gemini-3-flash-preview をデフォルトに使用
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     def summarize(self, transcript: str) -> Dict:
         """
@@ -70,41 +72,71 @@ class Summarizer:
         return self._generate_summary(prompt)
 
     def _generate_summary(self, prompt: str) -> Dict:
-        """Gemini APIを呼び出して要約を生成する共通処理"""
-        try:
-            # プレフィックスなしで試行
-            response = self.client.models.generate_content(
-                model=self.model_id,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                ),
-            )
-            return json.loads(response.text)
-        except Exception as e:
-            error_str = str(e)
-            print(f"DEBUG: Initial attempt failed for {self.model_id}: {error_str}")
+        """Gemini APIを呼び出して要約を生成する共通処理 (リトライ機能付き)"""
+        max_retries = 2
+        base_delay = 2.0  # seconds
 
-            # 404の場合、models/ プレフィックスを付けて再試行
-            if "404" in error_str and not self.model_id.startswith("models/"):
-                try:
-                    retry_model = f"models/{self.model_id}"
-                    print(f"DEBUG: Retrying with {retry_model}")
-                    response = self.client.models.generate_content(
-                        model=retry_model,
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            response_mime_type="application/json"
-                        ),
-                    )
-                    return json.loads(response.text)
-                except Exception as e2:
-                    error_str = f"{error_str} | Retry failed: {str(e2)}"
+        for attempt in range(max_retries + 1):
+            try:
+                # プレフィックスなしで試行
+                response = self.client.models.generate_content(
+                    model=self.model_id,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    ),
+                )
+                if response.text is None:
+                    raise Exception("Gemini returned empty response (None). This may be due to safety filters.")
+                return json.loads(response.text)
+            except Exception as e:
+                error_str = str(e)
+                # 429 Resource Exhausted handling
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    if attempt < max_retries:
+                        # Exponential backoff + jitter
+                        delay = base_delay * (2**attempt) + random.uniform(0, 1)
+                        print(
+                            f"DEBUG: Rate limit hit. Retrying in {delay:.2f}s... (Attempt {attempt + 1}/{max_retries})"
+                        )
+                        time.sleep(delay)
+                        continue
+                    else:
+                        print("DEBUG: Max retries reached for rate limit.")
 
-            print(f"Error in Gemini summarization: {error_str}")
-            with open("gemini_error.log", "a") as f:
-                f.write(error_str + "\n")
-            return {
-                "summary": f"要約の生成に失敗しました。({error_str[:60]}...)",
-                "key_points": [],
-            }
+                print(f"DEBUG: Initial attempt failed for {self.model_id}: {error_str}")
+
+                # 404の場合、models/ プレフィックスを付けて再試行 (1回のみ)
+                # (Rate limit以外のエラーで、かつ404の場合のみ)
+                if (
+                    "404" in error_str
+                    and not self.model_id.startswith("models/")
+                    and "429" not in error_str
+                ):
+                    try:
+                        retry_model = f"models/{self.model_id}"
+                        print(f"DEBUG: Retrying with {retry_model}")
+                        response = self.client.models.generate_content(
+                            model=retry_model,
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json"
+                            ),
+                        )
+                        return json.loads(response.text)
+                    except Exception as e2:
+                        error_str = f"{error_str} | Retry failed: {str(e2)}"
+                        # Retryで429が出た場合のハンドリングは複雑になるため、ここではループ外のエラー処理に任せる
+                        # 必要であればここもループに含める設計にすべきだが、まずは簡易対応
+
+                # リトライでもダメだった、あるいはリトライ対象外のエラー
+                if attempt == max_retries or (
+                    "429" not in error_str and "RESOURCE_EXHAUSTED" not in error_str
+                ):
+                    print(f"Error in Gemini summarization: {error_str}")
+                    with open("gemini_error.log", "a") as f:
+                        f.write(error_str + "\n")
+                    return {
+                        "summary": f"要約の生成に失敗しました。({error_str[:60]}...)",
+                        "key_points": [],
+                    }
