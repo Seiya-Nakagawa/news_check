@@ -37,3 +37,5 @@ jobs:
             --extra-vars "ansible_ssh_private_key_file=~/.ssh/id_rsa"
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
