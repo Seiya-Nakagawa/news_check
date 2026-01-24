@@ -11,8 +11,8 @@ from google.genai import types
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # テストで動作が確認された gemini-flash-latest をデフォルトに使用
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+        # 現時点で動作とクォータが確認できた gemini-3-flash-preview をデフォルトに使用
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     def summarize(self, transcript: str) -> Dict:
         """
@@ -73,7 +73,7 @@ class Summarizer:
 
     def _generate_summary(self, prompt: str) -> Dict:
         """Gemini APIを呼び出して要約を生成する共通処理 (リトライ機能付き)"""
-        max_retries = 5
+        max_retries = 2
         base_delay = 2.0  # seconds
 
         for attempt in range(max_retries + 1):
@@ -86,6 +86,8 @@ class Summarizer:
                         response_mime_type="application/json"
                     ),
                 )
+                if response.text is None:
+                    raise Exception("Gemini returned empty response (None). This may be due to safety filters.")
                 return json.loads(response.text)
             except Exception as e:
                 error_str = str(e)
