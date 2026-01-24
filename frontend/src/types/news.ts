@@ -22,3 +22,18 @@ export interface Channel {
   name: string;
   url: string;
 }
+
+export interface DailyDigestHeadline {
+  title: string;
+  summary: string;
+  link: string;
+  source: string;
+  published_at: string | null;
+}
+
+export interface DailyDigest {
+  date: string;
+  headlines: DailyDigestHeadline[];
+  updated_at?: string;
+  message?: string;
+}

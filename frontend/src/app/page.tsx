@@ -2,90 +2,64 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Hero from '@/components/news/Hero';
-import NewsCard from '@/components/news/NewsCard';
-import DetailModal from '@/components/news/DetailModal';
-import { Video } from '@/types/news';
+import { DailyDigest } from '@/types/news';
 import styles from './page.module.css';
 
-interface ApiVideo {
-  youtube_id: string;
-  title: string;
-  summary?: string;
-  thumbnail_url?: string;
-  published_at: string;
-  status: 'unprocessed' | 'processed' | 'failed_transcript';
-  key_points?: string[] | { point: string }[];
-}
-
 function NewsContent() {
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [digest, setDigest] = useState<DailyDigest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const searchParams = useSearchParams();
   const router = useRouter();
-  const searchQuery = searchParams.get('q') || '';
 
-  const fetchVideos = async () => {
+  // URLクエリパラメータから日付を取得 (YYYY-MM-DD)
+  const dateParam = searchParams.get('date');
+
+  const fetchDailyDigest = async (targetDate?: string) => {
     try {
       setIsLoading(true);
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/news/list`);
-      if (!response.ok) throw new Error('Failed to fetch videos');
-      const data: ApiVideo[] = await response.json();
 
-      const formattedVideos: Video[] = data.map((v: ApiVideo) => ({
-        youtube_id: v.youtube_id,
-        title: v.title,
-        channel_id: '',
-        thumbnail_url: v.thumbnail_url,
-        published_at: v.published_at,
-        status: v.status === 'failed_transcript' ? 'error' : v.status,
-        created_at: v.published_at,
-        summary: v.summary,
-        key_points: v.key_points ? (v.key_points as any).map((kp: string | { point: string }, idx: number) => ({
-            id: idx,
-            youtube_id: v.youtube_id,
-            point: typeof kp === 'string' ? kp : (kp as any).point || (kp as any).content || ''
-        })) : []
-      }));
+      let url = `${apiUrl}/api/news/daily`;
+      if (targetDate) {
+        url += `?target_date=${targetDate}`;
+      }
 
-      setVideos(formattedVideos);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch daily digest');
+      const data: DailyDigest = await response.json();
+
+      setDigest(data);
     } catch (error) {
-      console.error('Error fetching videos:', error);
+      console.error('Error fetching digest:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchVideos();
-  }, []);
+    fetchDailyDigest(dateParam || undefined);
+  }, [dateParam]);
 
-  const filteredVideos = videos.filter(video => {
-    if (video.status !== 'processed') return false;
-
-    const query = searchQuery.toLowerCase();
-    return (
-      video.title.toLowerCase().includes(query) ||
-      (video.summary && video.summary.toLowerCase().includes(query)) ||
-      (video.key_points && video.key_points.some(kp => kp.point.toLowerCase().includes(query)))
-    );
-  });
-
-  const handleVideoClick = (video: Video) => {
-    setSelectedVideo(video);
-    setIsModalOpen(true);
+  const formatDate = (dateString: string) => {
+    try {
+      const d = new Date(dateString);
+      return d.toLocaleDateString('ja-JP', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long'
+      });
+    } catch {
+      return dateString;
+    }
   };
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-  };
-
-  const clearSearch = () => {
-    router.push('/');
+  const handleDateChange = (days: number) => {
+    const current = digest?.date ? new Date(digest.date) : new Date();
+    current.setDate(current.getDate() + days);
+    const nextDate = current.toISOString().split('T')[0];
+    router.push(`/?date=${nextDate}`);
   };
 
   if (isLoading) {
@@ -93,7 +67,7 @@ function NewsContent() {
       <div className={styles.page}>
         <div className={styles.loadingContainer}>
           <div className={styles.loader}></div>
-          <p>ニュースを読み込んでいます...</p>
+          <p className={styles.loadingText}>ニュースを読み込んでいます...</p>
         </div>
       </div>
     );
@@ -103,60 +77,59 @@ function NewsContent() {
     <div className={styles.page}>
       <div className={styles.backgroundGlow} />
 
-      {filteredVideos.length > 0 ? (
-        <>
-          {!searchQuery && <Hero video={filteredVideos[0]} onClick={handleVideoClick} />}
-
-          <section className={`${styles.feedSection} ${searchQuery ? styles.searchActive : ''}`}>
-            <div className={styles.backgroundGlowBottom} />
-            <div className={styles.container}>
-              <div className={styles.feedHeader}>
-                <h2 className={styles.feedTitle}>
-                  {searchQuery ? `"${searchQuery}" の検索結果` : '過去のニュースフィード'}
-                </h2>
-              </div>
-
-              <div className={styles.grid}>
-                {(searchQuery ? filteredVideos : filteredVideos.slice(1)).map((video) => (
-                  <NewsCard
-                    key={video.youtube_id}
-                    video={video}
-                    onClick={handleVideoClick}
-                  />
-                ))}
-              </div>
-
-              {searchQuery && (
-                <div className={styles.searchFooter}>
-                  <button onClick={clearSearch} className={styles.backToTopBtn}>
-                    トップに戻る
-                  </button>
-                </div>
-              )}
-            </div>
-          </section>
-        </>
-      ) : (
-        <div className={styles.emptyContainer}>
-          <p>{searchQuery ? `"${searchQuery}" に一致するニュースはありません。` : 'ニュースが見つかりませんでした。'}</p>
-          <button onClick={searchQuery ? clearSearch : fetchVideos} className={styles.refreshBtn}>
-            {searchQuery ? '検索をクリア' : '再読み込み'}
+      <div className={styles.container}>
+        <header className={styles.header}>
+          <button onClick={() => handleDateChange(-1)} className={styles.navButton}>
+            ← 前の日
           </button>
-        </div>
-      )}
+          <div className={styles.dateDisplay}>
+            <h1>{digest ? formatDate(digest.date) : '...'}</h1>
+            <p className={styles.subTitle}>Daily AI News Digest</p>
+          </div>
+          <button onClick={() => handleDateChange(1)} className={styles.navButton}>
+            次の日 →
+          </button>
+        </header>
 
-      <DetailModal
-        video={selectedVideo}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
+        <main className={styles.mainContent}>
+          {!digest?.headlines || digest.headlines.length === 0 ? (
+            <div className={styles.emptyState}>
+              <p>この日のニュース要約はありません。</p>
+              <button onClick={() => fetchDailyDigest(dateParam || undefined)} className={styles.refreshBtn}>
+                再読み込み
+              </button>
+            </div>
+          ) : (
+            <div className={styles.newsList}>
+              {digest.headlines.map((item, index) => (
+                <article key={index} className={styles.newsItem}>
+                  <div className={styles.newsHeader}>
+                    <span className={styles.bulletPoint}>●</span>
+                    <h2 className={styles.newsTitle}>
+                      <a href={item.link} target="_blank" rel="noopener noreferrer">
+                        {item.title}
+                      </a>
+                    </h2>
+                    <span className={styles.sourceTag}>{item.source}</span>
+                  </div>
+                  <p className={styles.newsSummary}>{item.summary}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </main>
+
+        <footer className={styles.footer}>
+          <p>Powered by Google Gemini & Google News</p>
+        </footer>
+      </div>
     </div>
   );
 }
 
 export default function Home() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className={styles.page}>Loading...</div>}>
       <NewsContent />
     </Suspense>
   );
