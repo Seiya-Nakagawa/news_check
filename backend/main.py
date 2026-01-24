@@ -1,17 +1,24 @@
-import os
-import time
+"""
+News Check バックエンドAPI
 
-from fastapi import Depends, FastAPI, HTTPException
+Google News RSSからニュースを取得し、バッチ処理で要約して日別ダイジェストを生成する。
+"""
+
+import os
+from datetime import date, datetime, timedelta
+from typing import Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from nhk_client import NHKNewsClient
+from google_news_client import GoogleNewsClient
 from sqlalchemy.orm import Session
 from summarizer import Summarizer
 
-# 実際のファイル名 database.py に定義されているモデルをインポート
 from database import (
     Article,
     ArticleKeyPoint,
     Base,
+    DailyDigest,
     SessionLocal,
     Video,
     engine,
@@ -42,132 +49,156 @@ def get_db():
 
 @app.post("/api/news/collect")
 def collect_news(db: Session = Depends(get_db)):
-    """NHKニュースRSSから記事を取得し、要約してDBに保存する"""
+    """
+    Google News RSSからニュースを取得し、バッチ処理で要約してDailyDigestに保存する。
+    1回のAPI呼び出しで複数記事を要約するため、API使用量を大幅に削減。
+    """
     try:
-        nhk_client = NHKNewsClient()
+        news_client = GoogleNewsClient()
         summarizer = Summarizer(os.getenv("GEMINI_API_KEY"))
+        today = date.today()
 
-        # NHK RSSから記事を取得
-        articles = nhk_client.fetch_news(categories=["main"], max_articles=20)
+        # Google News RSSから記事を取得
+        articles = news_client.fetch_news(topics=["top"], max_articles=5)
 
-        # 1. RSSから見つかった記事をDBに保存
-        new_count = 0
-        for a in articles:
-            db_article = (
-                db.query(Article).filter(Article.article_id == a["article_id"]).first()
-            )
-            if not db_article:
-                db_article = Article(
-                    article_id=a["article_id"],
-                    title=a["title"],
-                    link=a["link"],
-                    description=a["description"],
-                    category=a.get("category"),
-                    source=a.get("source", "NHK"),
-                    published_at=a["published_at"],
-                    status="unprocessed",
-                )
-                db.add(db_article)
-                new_count += 1
-        db.commit()
+        if not articles:
+            return {
+                "status": "success",
+                "message": "No articles found",
+                "articles_count": 0,
+            }
 
-        # 2. データベース内の「全ての未処理記事」を処理する
-        pending_articles = (
-            db.query(Article)
-            .filter(
-                (Article.status == "unprocessed")
-                | (Article.summary.like("%要約の生成に失敗しました%"))
-            )
-            .all()
-        )
+        print(f"Fetched {len(articles)} articles from Google News")
 
-        processed_count = 0
-        for db_article in pending_articles:
-            try:
-                # 要約に使うテキストを用意 (description または content)
-                text_to_summarize = db_article.description or ""
+        # 既存のダイジェストを確認
+        existing_digest = db.query(DailyDigest).filter(DailyDigest.date == today).first()
 
-                # contentがまだなく、descriptionが短い場合は記事本文を取得
-                if not db_article.content and len(text_to_summarize) < 200:
-                    content = nhk_client.fetch_article_content(db_article.link)
-                    if content:
-                        db_article.content = content
-                        text_to_summarize = content
-                        db.commit()
+        # バッチ要約を実行
+        summaries = summarizer.summarize_batch(articles)
 
-                # テキストがあれば要約を生成
-                if text_to_summarize and len(text_to_summarize) > 50:
-                    # API制限回避
-                    # Free Tier: 15 RPM (4秒間隔以上) だが、1日20回制限を考慮して15秒間隔に延長
-                    time.sleep(15)
-
-                    # AI要約の生成
-                    summary_data = summarizer.summarize_article(text_to_summarize)
-
-                    # 429エラーなどの一時的な失敗の場合は、DBに失敗メッセージを書き込まずに次回の実行に回す
-                    summary_text = summary_data.get("summary", "")
-                    if "要約の生成に失敗しました" in summary_text:
-                        print(f"Summarization failed for {db_article.article_id}, will retry in next run.")
-                        continue
-
-                    db_article.summary = summary_text
-
-                    # 重要ポイントの保存（既存分を削除して更新）
-                    db.query(ArticleKeyPoint).filter(
-                        ArticleKeyPoint.article_id == db_article.article_id
-                    ).delete()
-                    for pt in summary_data.get("key_points", []):
-                        kp = ArticleKeyPoint(article_id=db_article.article_id, point=pt)
-                        db.add(kp)
-
-                    db_article.status = "processed"
-                    db.commit()
-                    processed_count += 1
-
-                    # 1回の実行での上限を厳しく設定 (1日20回制限のため)
-                    if processed_count >= 2:
-                        print("Reached processing limit for this run.")
-                        break
+        # ダイジェストデータを構築
+        headlines = []
+        for i, article in enumerate(articles):
+            summary_text = ""
+            if i < len(summaries):
+                summary_item = summaries[i]
+                if isinstance(summary_item, dict):
+                    summary_text = summary_item.get("summary", "")
                 else:
-                    print(
-                        f"Skipping {db_article.article_id}: Insufficient text for summarization"
-                    )
-                    db_article.status = "skipped"
-                    db.commit()
+                    summary_text = str(summary_item)
 
-            except Exception as e:
-                print(f"Error processing {db_article.article_id}: {e}")
-                db.rollback()
+            headlines.append({
+                "title": article.get("title", ""),
+                "summary": summary_text,
+                "link": article.get("link", ""),
+                "source": "Google News",
+                "published_at": article.get("published_at").isoformat() if article.get("published_at") else None,
+            })
+
+        # DailyDigestを保存または更新
+        if existing_digest:
+            existing_digest.headlines = headlines
+            existing_digest.updated_at = datetime.utcnow()
+        else:
+            new_digest = DailyDigest(
+                date=today,
+                headlines=headlines,
+            )
+            db.add(new_digest)
+
+        db.commit()
 
         return {
             "status": "success",
-            "processed_articles": processed_count,
-            "new_articles": new_count,
-            "total_found": len(articles),
+            "date": today.isoformat(),
+            "articles_count": len(headlines),
+            "api_calls": 1,  # バッチ処理により1回のAPI呼び出しのみ
         }
+
     except Exception as e:
-        print(f"Global error in collect_news: {e}")
+        print(f"Error in collect_news: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/news/daily")
+def get_daily_digest(
+    target_date: Optional[str] = Query(None, description="対象日 (YYYY-MM-DD形式、省略時は今日)"),
+    db: Session = Depends(get_db),
+):
+    """
+    指定日の日別ダイジェストを取得する。
+    1日分のニュースを箇条書き形式で返す。
+    """
+    try:
+        if target_date:
+            try:
+                query_date = datetime.strptime(target_date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        else:
+            query_date = date.today()
+
+        digest = db.query(DailyDigest).filter(DailyDigest.date == query_date).first()
+
+        if not digest:
+            return {
+                "date": query_date.isoformat(),
+                "headlines": [],
+                "message": "No digest found for this date",
+            }
+
+        return {
+            "date": digest.date.isoformat(),
+            "headlines": digest.headlines,
+            "updated_at": digest.updated_at.isoformat() if digest.updated_at else None,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_daily_digest: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/news/list")
 def list_news(db: Session = Depends(get_db)):
-    """要約済みのニュース一覧を取得 (NHK記事を優先、なければYouTube動画)"""
+    """
+    要約済みのニュース一覧を取得 (後方互換性のため残す)
+    新しいシステムではDailyDigestを使用するが、旧フロントエンドのためにこのエンドポイントも維持。
+    """
     result = []
 
-    # NHK記事を取得
-    articles = (
-        db.query(Article)
-        .filter(Article.status == "processed")
-        .order_by(Article.published_at.desc())
-        .limit(50)
-        .all()
-    )
+    # まずDailyDigestから今日のデータを取得
+    today_digest = db.query(DailyDigest).filter(DailyDigest.date == date.today()).first()
+    if today_digest and today_digest.headlines:
+        for i, headline in enumerate(today_digest.headlines):
+            result.append({
+                "id": f"gn_{i}",
+                "title": headline.get("title", ""),
+                "summary": headline.get("summary", ""),
+                "published_at": headline.get("published_at"),
+                "link": headline.get("link", ""),
+                "source": headline.get("source", "Google News"),
+                "category": None,
+                "status": "processed",
+                "key_points": [],
+                "type": "article",
+            })
 
-    for a in articles:
-        key_points = [kp.point for kp in a.key_points]
-        result.append(
-            {
+    # DailyDigestがなければ旧Articleテーブルから取得
+    if not result:
+        articles = (
+            db.query(Article)
+            .filter(Article.status == "processed")
+            .order_by(Article.published_at.desc())
+            .limit(50)
+            .all()
+        )
+
+        for a in articles:
+            key_points = [kp.point for kp in a.key_points]
+            result.append({
                 "id": a.article_id,
                 "title": a.title,
                 "summary": a.summary,
@@ -178,8 +209,7 @@ def list_news(db: Session = Depends(get_db)):
                 "status": a.status,
                 "key_points": key_points,
                 "type": "article",
-            }
-        )
+            })
 
     # NHK記事が少ない場合、YouTube動画も含める (後方互換性)
     if len(result) < 10:
@@ -192,21 +222,17 @@ def list_news(db: Session = Depends(get_db)):
         )
         for v in videos:
             key_points = [kp.point for kp in v.key_points]
-            result.append(
-                {
-                    "id": v.youtube_id,
-                    "youtube_id": v.youtube_id,
-                    "title": v.title,
-                    "summary": v.summary,
-                    "published_at": (
-                        v.published_at.isoformat() if v.published_at else None
-                    ),
-                    "thumbnail_url": v.thumbnail_url,
-                    "status": v.status,
-                    "key_points": key_points,
-                    "type": "video",
-                }
-            )
+            result.append({
+                "id": v.youtube_id,
+                "youtube_id": v.youtube_id,
+                "title": v.title,
+                "summary": v.summary,
+                "published_at": v.published_at.isoformat() if v.published_at else None,
+                "thumbnail_url": v.thumbnail_url,
+                "status": v.status,
+                "key_points": key_points,
+                "type": "video",
+            })
 
     # 公開日時でソート
     result.sort(key=lambda x: x.get("published_at") or "", reverse=True)
@@ -231,15 +257,13 @@ def list_videos(db: Session = Depends(get_db)):
     result = []
     for v in videos:
         key_points = [kp.point for kp in v.key_points]
-        result.append(
-            {
-                "youtube_id": v.youtube_id,
-                "title": v.title,
-                "summary": v.summary,
-                "published_at": v.published_at.isoformat() if v.published_at else None,
-                "thumbnail_url": v.thumbnail_url,
-                "status": v.status,
-                "key_points": key_points,
-            }
-        )
+        result.append({
+            "youtube_id": v.youtube_id,
+            "title": v.title,
+            "summary": v.summary,
+            "published_at": v.published_at.isoformat() if v.published_at else None,
+            "thumbnail_url": v.thumbnail_url,
+            "status": v.status,
+            "key_points": key_points,
+        })
     return result

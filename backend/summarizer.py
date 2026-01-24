@@ -2,7 +2,7 @@ import json
 import os
 import random
 import time
-from typing import Dict
+from typing import Dict, List
 
 from google import genai
 from google.genai import types
@@ -11,8 +11,8 @@ from google.genai import types
 class Summarizer:
     def __init__(self, api_key: str):
         self.client = genai.Client(api_key=api_key)
-        # 現時点で動作とクォータが確認できた gemini-3-flash-preview をデフォルトに使用
-        self.model_id = os.getenv("GEMINI_MODEL", "gemini-3-flash-preview")
+        # 現時点で動作とクォータが確認できた gemini-2.0-flash をデフォルトに使用
+        self.model_id = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 
     def summarize(self, transcript: str) -> Dict:
         """
@@ -70,6 +70,60 @@ class Summarizer:
 {article_text}
 """
         return self._generate_summary(prompt)
+
+    def summarize_batch(self, articles: List[Dict]) -> List[Dict]:
+        """
+        複数のニュース記事を1回のAPI呼び出しでバッチ要約する。
+
+        Args:
+            articles: 記事情報のリスト。各記事は {"title": str, "description": str} を含む。
+
+        Returns:
+            要約結果のリスト。各要約は {"title": str, "summary": str} を含む。
+        """
+        if not articles:
+            return []
+
+        # 記事リストをプロンプト用に整形
+        articles_text = ""
+        for i, article in enumerate(articles, 1):
+            title = article.get("title", "タイトルなし")
+            desc = article.get("description", "")[:500]  # 長すぎる場合は切り詰め
+            articles_text += f"{i}. 【{title}】\n   {desc}\n\n"
+
+        prompt = f"""
+あなたはプロのニュース編集者です。以下の複数のニュース記事を、それぞれ1〜2行の簡潔な要約にまとめてください。
+
+【注意点】
+- 各記事の核心となる事実のみを抽出してください。
+- 5W1H（いつ、どこで、誰が、何を）を意識した要約を心がけてください。
+- 定型文やメタ情報は含めないでください。
+
+【出力形式】
+以下のJSON配列形式で出力してください。記事の順番は入力と同じにしてください。
+[
+  {{"index": 1, "title": "記事タイトル", "summary": "1〜2行の簡潔な要約"}},
+  {{"index": 2, "title": "記事タイトル", "summary": "1〜2行の簡潔な要約"}},
+  ...
+]
+
+【対象の記事一覧】
+{articles_text}
+"""
+
+        result = self._generate_summary(prompt)
+
+        # 結果がリストでない場合（エラー時など）の対応
+        if isinstance(result, dict) and "summary" in result:
+            # エラーメッセージが返ってきた場合
+            error_msg = result.get("summary", "バッチ要約に失敗しました")
+            return [{"title": a.get("title", ""), "summary": error_msg} for a in articles]
+
+        if isinstance(result, list):
+            return result
+
+        # 予期しない形式の場合
+        return [{"title": a.get("title", ""), "summary": "要約の取得に失敗しました"} for a in articles]
 
     def _generate_summary(self, prompt: str) -> Dict:
         """Gemini APIを呼び出して要約を生成する共通処理 (リトライ機能付き)"""

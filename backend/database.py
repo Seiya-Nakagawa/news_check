@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -10,6 +11,7 @@ from sqlalchemy import (
     Text,
     create_engine,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 
@@ -92,6 +94,22 @@ class ArticleKeyPoint(Base):
     point = Column(Text, nullable=False)
 
     article = relationship("Article", back_populates="key_points")
+
+
+# =====================================================
+# 日別ダイジェスト用モデル
+# =====================================================
+
+
+class DailyDigest(Base):
+    """1日分のニュース要約をまとめて保存するモデル"""
+
+    __tablename__ = "daily_digests"
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, unique=True, nullable=False, index=True)
+    headlines = Column(JSONB, nullable=False)  # [{title, summary, link, source}, ...]
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 def get_db():
