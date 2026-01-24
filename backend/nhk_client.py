@@ -134,6 +134,7 @@ class NHKNewsClient:
             # NHKニュースの記事本文を取得
             # 複数のセレクタを試す
             content_selectors = [
+                "div._1i1d7sh0",  # 最新のNHK ONEレイアウト
                 "div.content--detail-body",
                 "div.body-content",
                 "article",

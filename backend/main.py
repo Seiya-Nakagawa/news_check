@@ -103,7 +103,14 @@ def collect_news(db: Session = Depends(get_db)):
 
                     # AI要約の生成
                     summary_data = summarizer.summarize_article(text_to_summarize)
-                    db_article.summary = summary_data.get("summary")
+
+                    # 429エラーなどの一時的な失敗の場合は、DBに失敗メッセージを書き込まずに次回の実行に回す
+                    summary_text = summary_data.get("summary", "")
+                    if "要約の生成に失敗しました" in summary_text:
+                        print(f"Summarization failed for {db_article.article_id}, will retry in next run.")
+                        continue
+
+                    db_article.summary = summary_text
 
                     # 重要ポイントの保存（既存分を削除して更新）
                     db.query(ArticleKeyPoint).filter(

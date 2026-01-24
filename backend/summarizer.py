@@ -83,11 +83,41 @@ class Summarizer:
                     model=self.model_id,
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        response_mime_type="application/json"
+                        response_mime_type="application/json",
+                        safety_settings=[
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                            types.SafetySetting(
+                                category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+                                threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                            ),
+                        ],
                     ),
                 )
                 if response.text is None:
-                    raise Exception("Gemini returned empty response (None). This may be due to safety filters.")
+                    # 詳細な原因究明のためにレスポンスの中身を確認
+                    finish_reason = "Unknown"
+                    safety_ratings = []
+                    if response.candidates:
+                        finish_reason = response.candidates[0].finish_reason
+                        safety_ratings = response.candidates[0].safety_ratings
+
+                    error_msg = f"Gemini returned empty response. FinishReason: {finish_reason}, SafetyRatings: {safety_ratings}"
+                    raise Exception(error_msg)
                 return json.loads(response.text)
             except Exception as e:
                 error_str = str(e)
@@ -120,9 +150,33 @@ class Summarizer:
                             model=retry_model,
                             contents=prompt,
                             config=types.GenerateContentConfig(
-                                response_mime_type="application/json"
+                                response_mime_type="application/json",
+                                safety_settings=[
+                                    types.SafetySetting(
+                                        category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                    ),
+                                    types.SafetySetting(
+                                        category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                    ),
+                                    types.SafetySetting(
+                                        category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                    ),
+                                    types.SafetySetting(
+                                        category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                    ),
+                                    types.SafetySetting(
+                                        category=types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY,
+                                        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+                                    ),
+                                ],
                             ),
                         )
+                        if response.text is None:
+                            raise Exception("Gemini returned empty response (None) even on retry.")
                         return json.loads(response.text)
                     except Exception as e2:
                         error_str = f"{error_str} | Retry failed: {str(e2)}"
