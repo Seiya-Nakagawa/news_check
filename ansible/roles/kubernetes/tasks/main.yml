@@ -199,3 +199,18 @@
   command: kubectl apply -f /tmp/metrics_server_deploy.yaml
   register: metrics_deploy
   changed_when: "'created' in metrics_deploy.stdout or 'configured' in metrics_deploy.stdout"
+
+# cert-manager ClusterIssuer
+- name: Generate cert-manager ClusterIssuer manifest
+  template:
+    src: cluster_issuer.yaml.j2
+    dest: /tmp/cluster_issuer.yaml
+    mode: '0644'
+  when: not ansible_check_mode
+
+- name: Deploy cert-manager ClusterIssuer
+  become_user: seiya
+  command: kubectl apply -f /tmp/cluster_issuer.yaml
+  register: cluster_issuer_deploy
+  changed_when: "'created' in cluster_issuer_deploy.stdout or 'configured' in cluster_issuer_deploy.stdout"
+  when: not ansible_check_mode

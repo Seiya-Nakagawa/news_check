@@ -19,6 +19,7 @@ sysctl_parameters:
 # Kubernetes settings
 k8s_version: "1.30"
 pod_network_cidr: "10.244.0.0/16"
+cert_manager_email: "aibdlnew1.work@gmail.com"
 
 # MySQL settings
 mysql_databases:
