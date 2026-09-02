@@ -1,40 +1,55 @@
-# infra-oci-terraform プロジェクト規約
+# CLAUDE.md
 
-本ファイルは、OCI（Oracle Cloud Infrastructure）インフラ管理リポジトリ特有のコーディング規約およびワークフローを定めたものです。グローバルな規約を補完し、本プロジェクトにおいて優先的に適用されます。
+このファイルは、本リポジトリ固有の事情を記録したものです。
 
-## 1. ワークフロー規約
+基本方針・機密情報の取り扱い・Git 運用・コーディング規約・Markdown 記法などの共通規約は
+グローバル規約（`~/.claude/CLAUDE.md`、`~/.gemini/GEMINI.md`、`~/.claude/rules/`）に従います。
+**本ファイルに共通規約を重複定義しないこと。**
 
-1. **Terraform操作**:
-   * 原則として Terraform Cloud (CLI-driven workflow) をリモートバックエンドとして利用し、ローカルから `terraform` コマンドで操作・実行する運用とします。
-   * ローカルで実行する際は、必ず `terraform plan` で変更内容を慎重に確認してから `terraform apply` を行ってください。
-2. **変更の検証**:
-   * コード修正後は `terraform fmt -check` および `terraform validate` を実行し、構文と構成の妥当性を確認してください。
-3. **コミット規約**:
-   * インフラ構成の変更は、影響範囲が大きいため、コミットメッセージに「何を変更し、なぜ変更したか」を明記してください。
+## 1. プロジェクト概要
 
-## 2. セキュリティ規約
+OCI（Oracle Cloud Infrastructure）のインフラを Terraform で管理するリポジトリ。
 
-1. **機密情報の保護**:
-   * `*.tfvars`、`*.pem`、`.env` などの機密情報を含むファイルは絶対にコミットしないでください。
-   * 認証情報は環境変数または Terraform Cloud の Variable (Sensitive) として管理してください。
-2. **最小権限の原則**:
-   * セキュリティ・リストやIAMポリシーの変更時は、必要最小限の権限付与にとどめるよう設計してください。
+| ディレクトリ | 内容 |
+| ------------ | ---- |
+| `terraform/` | Terraform 構成ファイル一式（`main.tf`、`network.tf`、`compute.tf` など） |
+| `scripts/` | plan / apply / SSH 接続の補助スクリプト |
+| `docs/` | 要件定義書・設計書・手順書 |
 
-## 3. 標準作業フロー
+Terraform Cloud（CLI-driven workflow）をリモートバックエンドとして利用し、
+ローカルから `terraform` コマンドで操作・実行する。
+セットアップ手順は [TERRAFORM_CLOUD_SETUP.md](TERRAFORM_CLOUD_SETUP.md) を参照する。
 
-本プロジェクトにおける基本的な作業の流れは以下の通りです。
+## 2. Terraform 操作
 
-1. **ドキュメント更新**: `docs/` 配下のドキュメント（要件定義書、設計書、手順書など）を必要に応じて更新する。
-2. **Terraform実行**: `terraform` コマンドを実行し、インフラへの反映を行う（ユーザーが手動で実施）。
-3. **Gitプッシュ**: 以下の手順で変更内容をコミットし、GitHubへプッシュする。
-   * `git status` で変更内容を確認する。
-   * `git add <file>` で必要なファイルのみをステージングする。
-   * `git commit -m "type: 変更内容の説明"` でコミットメッセージを作成する（Conventional Commits 準拠）。
-   * `git push origin main` でリモートリポジトリへ反映する。
+補助スクリプトはリポジトリルートから実行する（内部で `terraform/` へ移動する）。
 
-## 4. 構成管理
+| コマンド | 内容 |
+| -------- | ---- |
+| `./scripts/plan_tf.sh` | `terraform fmt` → `init` → `plan` を実行し、実行計画を `terraform/tfplan` に保存する |
+| `./scripts/apply_tf.sh` | `terraform/tfplan` を適用する。計画ファイルが無い場合は中断する |
+| `./scripts/ssh_connect.sh` | 作成した Compute インスタンスへパブリック IP で SSH 接続する（`-i` で秘密鍵を指定） |
 
-* **ディレクトリ構成**:
-  * ルートディレクトリに Terraform 構成ファイルを配置します。
-* **命名規則**:
-  * リソース名はケバブケース (`kebab-case`) またはスネークケース (`snake_case`) で一貫性を持たせてください。
+- **`apply` はユーザーが実施する。** AI は `plan` までを実行し、変更内容を提示して判断を仰ぐ
+- コード修正後は `terraform fmt -check` および `terraform validate` で構文と構成の妥当性を確認する
+
+## 3. 機密情報
+
+グローバル規約の一般方針に加え、本リポジトリでは以下を守る。
+
+- `*.tfvars`、`*.pem` など機密情報を含むファイルは絶対にコミットしない
+  （テンプレートは `terraform/terraform.tfvars.example` を使用する）
+- 認証情報は環境変数、または Terraform Cloud の Variable（Sensitive）として管理する
+- セキュリティ・リストや IAM ポリシーの変更時は、必要最小限の権限付与にとどめる
+
+## 4. 命名規則
+
+リソース名はケバブケース（`kebab-case`）またはスネークケース（`snake_case`）で一貫性を持たせる。
+
+## 5. 作業の流れ
+
+1. `docs/` 配下のドキュメント（要件定義書・設計書・手順書）を必要に応じて更新する
+   （`~/.claude/rules/docs-sync.md`）
+2. `./scripts/plan_tf.sh` で実行計画を確認し、ユーザーの判断のもとインフラへ反映する
+3. Git 操作は `~/.claude/rules/git-workflow.md` に従う（Issue → 作業ブランチ → PR）。
+   インフラ構成の変更は影響範囲が大きいため、コミット本文に「何を変更し、なぜ変更したか」を明記する
