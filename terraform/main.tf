@@ -1,6 +1,6 @@
-# News Check - OCI Infrastructure
+# infra-oci-terraform - OCI Infrastructure
 #
-# このプロジェクトは、News CheckアプリケーションをOracle Cloud Infrastructure (OCI) に
+# このプロジェクトは、個人開発基盤をOracle Cloud Infrastructure (OCI) に
 # デプロイするためのTerraform構成です。
 #
 # リソース定義は以下のファイルに分割されています:

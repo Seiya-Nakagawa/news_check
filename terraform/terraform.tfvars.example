@@ -44,7 +44,7 @@ compartment_ocid = "ocid1.compartment.oc1..aaaaaaaa..."
 # allowed_ssh_cidr = "123.456.789.0/32"
 
 # (オプション) プロジェクト名
-# project_name = "news-check"
+# project_name = "infra-oci"
 
 # (オプション) 環境名
 # environment = "production"

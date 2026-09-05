@@ -1,5 +1,5 @@
 # VCN (Virtual Cloud Network)
-resource "oci_core_vcn" "news_check_vcn" {
+resource "oci_core_vcn" "main" {
   compartment_id = var.compartment_ocid
   cidr_blocks    = [var.vcn_cidr_block]
   display_name   = "${var.project_name}-vcn"
@@ -12,9 +12,9 @@ resource "oci_core_vcn" "news_check_vcn" {
 }
 
 # Internet Gateway
-resource "oci_core_internet_gateway" "news_check_igw" {
+resource "oci_core_internet_gateway" "main" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.news_check_vcn.id
+  vcn_id         = oci_core_vcn.main.id
   display_name   = "${var.project_name}-igw"
   enabled        = true
 
@@ -25,13 +25,13 @@ resource "oci_core_internet_gateway" "news_check_igw" {
 }
 
 # Route Table
-resource "oci_core_route_table" "news_check_route_table" {
+resource "oci_core_route_table" "main" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.news_check_vcn.id
+  vcn_id         = oci_core_vcn.main.id
   display_name   = "${var.project_name}-route-table"
 
   route_rules {
-    network_entity_id = oci_core_internet_gateway.news_check_igw.id
+    network_entity_id = oci_core_internet_gateway.main.id
     destination       = "0.0.0.0/0"
     destination_type  = "CIDR_BLOCK"
   }
@@ -43,9 +43,9 @@ resource "oci_core_route_table" "news_check_route_table" {
 }
 
 # Security List
-resource "oci_core_security_list" "news_check_security_list" {
+resource "oci_core_security_list" "main" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.news_check_vcn.id
+  vcn_id         = oci_core_vcn.main.id
   display_name   = "${var.project_name}-security-list"
 
   # Egress Rules (送信ルール: すべての通信を許可)
@@ -110,14 +110,14 @@ resource "oci_core_security_list" "news_check_security_list" {
 }
 
 # Public Subnet
-resource "oci_core_subnet" "news_check_public_subnet" {
+resource "oci_core_subnet" "public" {
   compartment_id             = var.compartment_ocid
-  vcn_id                     = oci_core_vcn.news_check_vcn.id
+  vcn_id                     = oci_core_vcn.main.id
   cidr_block                 = var.subnet_cidr_block
   display_name               = "${var.project_name}-public-subnet"
   dns_label                  = "public"
-  route_table_id             = oci_core_route_table.news_check_route_table.id
-  security_list_ids          = [oci_core_security_list.news_check_security_list.id]
+  route_table_id             = oci_core_route_table.main.id
+  security_list_ids          = [oci_core_security_list.main.id]
   prohibit_public_ip_on_vnic = false
 
   freeform_tags = {

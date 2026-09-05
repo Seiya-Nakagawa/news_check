@@ -1,31 +1,31 @@
 # インスタンスの公開IPアドレス
 output "instance_public_ip" {
   description = "Public IP address of the compute instance"
-  value       = oci_core_instance.news_check_instance.public_ip
+  value       = oci_core_instance.main.public_ip
 }
 
 # インスタンスのプライベートIPアドレス
 output "instance_private_ip" {
   description = "Private IP address of the compute instance"
-  value       = oci_core_instance.news_check_instance.private_ip
+  value       = oci_core_instance.main.private_ip
 }
 
 # インスタンスOCID
 output "instance_ocid" {
   description = "OCID of the compute instance"
-  value       = oci_core_instance.news_check_instance.id
+  value       = oci_core_instance.main.id
 }
 
 # VCN OCID
 output "vcn_ocid" {
   description = "OCID of the VCN"
-  value       = oci_core_vcn.news_check_vcn.id
+  value       = oci_core_vcn.main.id
 }
 
 # Subnet OCID
 output "subnet_ocid" {
   description = "OCID of the public subnet"
-  value       = oci_core_subnet.news_check_public_subnet.id
+  value       = oci_core_subnet.public.id
 }
 
 # Cloud Shell経由の接続案内
@@ -37,13 +37,13 @@ output "cloud_shell_instruction" {
 # インスタンスの状態
 output "instance_state" {
   description = "Current state of the instance"
-  value       = oci_core_instance.news_check_instance.state
+  value       = oci_core_instance.main.state
 }
 
 # アプリケーションURL
 output "application_url" {
   description = "URL to access the application"
-  value       = "http://${oci_core_instance.news_check_instance.public_ip}"
+  value       = "http://${oci_core_instance.main.public_ip}"
 }
 
 # 使用しているOSイメージ
