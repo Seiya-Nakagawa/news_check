@@ -54,7 +54,7 @@ variable "instance_memory_in_gbs" {
 variable "instance_display_name" {
   description = "Display name for the compute instance"
   type        = string
-  default     = "news-check-app-server"
+  default     = "infra-oci-app-server"
 }
 
 variable "instance_user" {
@@ -115,7 +115,7 @@ variable "app_https_port" {
 variable "project_name" {
   description = "Project name for tagging resources"
   type        = string
-  default     = "news-check"
+  default     = "infra-oci"
 }
 
 variable "environment" {
@@ -145,7 +145,7 @@ variable "ssh_public_key" {
 }
 
 variable "domain_name" {
-  description = "Domain name for the application (e.g., news-check.example.com)"
+  description = "Domain name for the application (e.g., infra-oci.example.com)"
   type        = string
   default     = ""
 }
