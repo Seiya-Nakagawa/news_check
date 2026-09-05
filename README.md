@@ -87,8 +87,15 @@ terraform output
 ```
 
 接続情報は `terraform output` から自動取得します。
-MySQL のパスワード等の機密情報は Ansible Vault で暗号化し、Vault パスワードは
-`ansible/.vault_password`（Git 管理外）に配置してください。
+MySQL のパスワード等の機密情報は Ansible Vault で暗号化しています。
+Vault パスワードは `ansible/.vault_password`（Git 管理外）に配置してください。
+`ansible/ansible.cfg` の `vault_password_file` から参照されるため、
+`--vault-password-file` オプションの指定は不要です。
+
+```bash
+echo "{Vault のパスワード}" > ansible/.vault_password
+chmod 600 ansible/.vault_password
+```
 
 ### SSH 接続
 

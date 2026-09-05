@@ -48,7 +48,8 @@ Terraform Cloud（CLI-driven workflow）をリモートバックエンドとし�
 - 本番環境への変更を伴う実行は、事前に `--check`（ドライラン）で影響範囲を確認する
 - 対象ホストへは OCI Bastion を経由せず、許可された IP からパブリック IP へ直接 SSH 接続する
 - MySQL のパスワード等の機密情報は Ansible Vault で暗号化し、Vault パスワードは
-  `ansible/.vault_password`（Git 管理外）に置く
+  `ansible/.vault_password`（Git 管理外）に置く。`ansible/ansible.cfg` の
+  `vault_password_file` で参照するため、実行時にオプションを指定する必要はない
 
 ## 4. サーバー作業
 
