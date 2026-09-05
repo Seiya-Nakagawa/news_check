@@ -103,4 +103,23 @@
     update_password: on_create
     login_unix_socket: /var/run/mysqld/mysqld.sock
   loop: "{{ mysql_users }}"
+  no_log: true
+  when: not ansible_check_mode
+
+# seiya_db は個人名を含むため app-dbuser へ改名した（2026-09-05）。
+- name: Remove legacy seiya_db user (renamed to app-dbuser)
+  mysql_user:
+    name: seiya_db
+    host: localhost
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock
+  when: not ansible_check_mode
+
+# 改名作業中の過渡的な名称として shared_app を一時的に作成したため削除する（2026-09-05）。
+- name: Remove transitional shared_app user (renamed to app-dbuser)
+  mysql_user:
+    name: shared_app
+    host: localhost
+    state: absent
+    login_unix_socket: /var/run/mysqld/mysqld.sock
   when: not ansible_check_mode
