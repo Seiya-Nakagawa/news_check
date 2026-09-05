@@ -6,7 +6,7 @@ terraform {
   cloud {
     organization = "aibdlnew1-organization"
     workspaces {
-      name = "infra-oci-terraform"
+      name = "infra-oci"
     }
   }
 
