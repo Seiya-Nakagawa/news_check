@@ -218,6 +218,15 @@ sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|pubkeyauthenticat
 # カーネルパラメータ (IPv6無効化、SYN Flood対策が有効か)
 sysctl net.ipv6.conf.all.disable_ipv6 net.ipv4.tcp_syncookies
 
+# OS内ファイアウォール (ufw が inactive であること)
+sudo ufw status
+
+# iptables (全拒否ルール REJECT --reject-with icmp-host-prohibited が存在しないこと)
+sudo iptables -S
+
+# iptables 永続化パッケージ (出力がないこと)
+dpkg -l | grep -E 'iptables-persistent|netfilter-persistent'
+
 # スワップ領域 (スワップが 0B になっていること)
 free -h
 swapon --show
