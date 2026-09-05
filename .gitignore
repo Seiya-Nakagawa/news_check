@@ -30,14 +30,29 @@ terraform.rc
 # Local .terraform directories
 **/.terraform/*
 
+# Script generated files
+terraform/tfplan
+terraform/tfplan.log
+
+# Ansible
+*.retry
+
+# Ansible Vault
+.vault_password
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Antigravity CLI
+.antigravitycli/
+
 # IDEs
 .vscode/
 .idea/
 
 # OS specific files
 .DS_Store
+.thumbs.db
 Thumbs.db
-
-# Script generated files
-terraform/tfplan
-terraform/tfplan.log

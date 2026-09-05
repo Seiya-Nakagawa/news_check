@@ -1,0 +1,250 @@
+# 02 構築手順書 - Ansible によるサーバ構成管理
+
+## 目次
+
+- [1. 概要](#1-概要)
+- [2. 前提条件](#2-前提条件)
+- [3. 手順](#3-手順)
+  - [3.1. 接続テスト](#31-接続テスト)
+  - [3.2. 機密情報の管理 (Ansible Vault)](#32-機密情報の管理-ansible-vault)
+    - [3.2.1. Vault パスワードファイルの作成 (推奨)](#321-vault-パスワードファイルの作成-推奨)
+    - [3.2.2. 暗号化変数の設定](#322-暗号化変数の設定)
+  - [3.3. 構築プレイブックの実行](#33-構築プレイブックの実行)
+    - [3.3.1. インベントリファイルの確認](#331-インベントリファイルの確認)
+    - [3.3.2. 構文チェック (Syntax Check)](#332-構文チェック-syntax-check)
+    - [3.3.3. サービス別実行手順](#333-サービス別実行手順)
+  - [3.4. 構築後の状態検証](#34-構築後の状態検証)
+    - [3.4.1. OS レイヤーの検証](#341-os-レイヤーの検証)
+    - [3.4.2. Kubernetes レイヤーの検証](#342-kubernetes-レイヤーの検証)
+    - [3.4.3. MySQL レイヤーの検証](#343-mysql-レイヤーの検証)
+
+## 1. 概要
+
+OCI 上の Compute インスタンスに対し、Ansible を用いて OS 調整、Kubernetes（シングルノードクラスター）、
+MySQL サーバを構築する手順。各レイヤーの設計は
+[OS設計書](../02.設計/OS設計書.md)、[Kubernetes設計書](../02.設計/Kubernetes設計書.md)、
+[MySQL設計書](../02.設計/MySQL設計書.md) を参照する。
+
+## 2. 前提条件
+
+作業を開始する前に、ローカル環境（WSL等）が以下の状態であることを確認してください。
+
+- [ ] **SSH秘密鍵の配置**:
+  - `~/.ssh/id_rsa`（秘密鍵）および `~/.ssh/id_rsa.pub`（公開鍵）が配置されていること。
+  - 公開鍵は Terraform の初期構築時にインスタンスに設定されている必要があります。
+- [ ] **OCI CLI のセットアップ**:
+  - `oci` コマンドがインストールされ、認証情報（APIキー等）が設定されていること。
+  - `oci iam compartment list` 等のコマンドが正常に動作すること。
+- [ ] **Terraform 適用完了**:
+  - 本リポジトリの `terraform/` で `terraform apply` が正常に完了していること。
+- [ ] **Ansible のインストール**:
+  - `ansible-playbook` コマンドが使用可能であること（Ansible 2.15 以上推奨）。
+
+---
+
+## 3. 手順
+
+### 3.1. 接続テスト
+
+セキュリティ・リストによって、許可されたクライアントIP（ご自身のグローバルIP）からの直接の SSH 接続（ポート 22）が許可されています。
+踏み台を経由せず、インスタンスのパブリックIPに直接 SSH 接続できるか確認します。
+
+```bash
+# インスタンスのパブリックIPに直接SSH接続 (IP: 217.142.230.83)
+ssh -i ~/.ssh/id_rsa seiya@217.142.230.83
+```
+
+無事にターゲットインスタンスに接続でき、`seiya` ユーザーから `sudo su -` で root になれることが確認できたら、`exit` でローカルに戻ります。
+
+---
+
+### 3.2. 機密情報の管理 (Ansible Vault)
+
+MySQL の接続パスワードなどの機密情報は `Ansible Vault` を使用して管理します。
+
+#### 3.2.1. Vault パスワードファイルの作成 (推奨)
+
+実行時のパスワード入力を省略するため、ローカルに Vault 用のパスワードファイルを作成します。
+**（※このファイルは絶対に Git にコミットしないでください。`.gitignore` に追加済みです）**
+
+```bash
+# ansible ディレクトリへ移動
+cd ansible
+
+# Vault 用のパスワードをファイルに保存 (例: MySecretPassword123)
+echo "MySecretPassword123" > .vault_password
+chmod 600 .vault_password
+```
+
+#### 3.2.2. 暗号化変数の設定
+
+`ansible/group_vars/all.yml` または個別のシークレットファイルで、`vault_mysql_password` などの変数を暗号化します。
+
+例えば、暗号化した文字列を直接作成するには以下のコマンドを実行します。
+
+```bash
+# 変数値を暗号化 (ansible ディレクトリ内で実行)
+ansible-vault encrypt_string --vault-password-file .vault_password 'YourActualMySQLPasswordHere' --name 'vault_mysql_password'
+```
+
+出力された `!vault | ...` というブロックを `ansible/group_vars/all.yml` の `vault_mysql_password` の部分に貼り付けてください。
+
+---
+
+### 3.3. 構築プレイブックの実行
+
+セキュリティ・リストによりご自身のグローバルIPからのアクセス制限が設定されており、`ansible/hosts.yml` のホストIPもパブリックIPに変更されているため、手動で `ansible` ディレクトリに移動し、そのまま `ansible-playbook` コマンドを直接実行することができます。複雑な ProxyCommand や環境変数の設定は不要です。
+
+#### 3.3.1. インベントリファイルの確認
+
+`ansible/hosts.yml` の `ansible_host` が、インスタンスのパブリックIP（`217.142.230.83`）に設定されていることを確認してください。
+
+#### 3.3.2. 構文チェック (Syntax Check)
+
+プレイブックの構文に問題がないか事前に確認します。必ず `ansible` ディレクトリに移動してから実行してください。
+
+```bash
+# ansible ディレクトリに移動
+cd ansible
+
+# 構文チェック
+ansible-playbook -i hosts.yml site.yml --syntax-check
+```
+
+#### 3.3.3. サービス別実行手順
+
+本構築は影響範囲や進捗を確認しやすくするため、**「OS設定」➔「Kubernetes構築」➔「MySQL構築」の順にサービス別（タグ指定）で順次実行**することを推奨します。必ず `ansible` ディレクトリに移動してから実行してください。
+
+##### 3.3.3.1. OS基本設定 (Tag: `os`)
+
+1. **ドライラン（確認のみ）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff --tags os
+   ```
+
+2. **本実行（適用）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --tags os
+   ```
+
+##### 3.3.3.2. Kubernetesクラスター構築 (Tag: `kubernetes`)
+
+※ OS設定が完了した後に実行してください。
+
+1. **ドライラン（確認のみ）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff --tags kubernetes
+   ```
+
+2. **本実行（適用）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --tags kubernetes
+   ```
+
+##### 3.3.3.3. MySQLサーバー構築 (Tag: `mysql`)
+
+※ Kubernetes構築が完了した後に実行してください。
+
+1. **ドライラン（確認のみ）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff --tags mysql
+   ```
+
+2. **本実行（適用）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --tags mysql
+   ```
+
+##### 3.3.3.4. (参考) 全て一括で実行したい場合
+
+全ての構成要素（OS、Kubernetes、MySQL）を一度に適用したい場合は、タグを指定せずに実行します。
+
+1. **ドライラン（確認のみ）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff
+   ```
+
+2. **本実行（適用）**
+
+   ```bash
+   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password
+   ```
+
+---
+
+### 3.4. 構築後の状態検証
+
+プレイブックの実行が正常に完了したら、サーバーに SSH 接続（`./scripts/ssh_connect.sh`）し、各レイヤーが設計書通りに構成されているか検証します。
+
+#### 3.4.1. OS レイヤーの検証
+
+以下のコマンドを実行し、設定値を確認します。
+
+```bash
+# ホスト名の確認 (oci-portfolio になっていること)
+hostnamectl status
+
+# タイムゾーンの確認 (Asia/Tokyo になっていること)
+timedatectl
+
+# ロケールの確認 (ja_JP.UTF-8 になっていること)
+locale
+
+# SSH 設定 (ルートログイン禁止、パスワード認証禁止が適用されているか)
+sudo sshd -T | grep -E 'permitrootlogin|passwordauthentication|pubkeyauthentication|maxauthtries'
+
+# カーネルパラメータ (IPv6無効化、SYN Flood対策が有効か)
+sysctl net.ipv6.conf.all.disable_ipv6 net.ipv4.tcp_syncookies
+
+# スワップ領域 (スワップが 0B になっていること)
+free -h
+swapon --show
+
+# Fail2Ban の状態確認
+sudo fail2ban-client status sshd
+```
+
+#### 3.4.2. Kubernetes レイヤーの検証
+
+`seiya` ユーザーとして Kubernetes クラスターの状態を確認します。
+
+```bash
+# ノード状態 (Ready であること、シングルノード構成であること)
+kubectl get nodes -o wide
+
+# 全てのシステム Pod (Flannel、ingress-nginx、cert-manager、Metrics Server 等が Running であること)
+kubectl get pods -A
+
+# StorageClass (local-path が default として登録されていること)
+kubectl get sc
+
+# Ingress Controller のポート占有確認 (80, 443 がホストでリッスンされているか)
+sudo netstat -tlnp | grep -E '80|443'
+```
+
+#### 3.4.3. MySQL レイヤーの検証
+
+MySQL の稼働状態およびデータベースの構成を確認します。
+
+```bash
+# MySQL サービス稼働状態
+systemctl status mysql
+
+# MySQL 接続確認 (OSの root ユーザーからソケット経由でパスワードなしでログインできるか)
+sudo mysql -u root
+
+# アプリケーション用データベースの確認 (MySQL内で実行)
+mysql -u root -e "SHOW DATABASES;"
+# -> laravel_db が出力されること。
+
+# 文字コード確認 (MySQL内で実行)
+mysql -u root -e "SHOW VARIABLES LIKE 'character_set_server';"
+# -> utf8mb4 になっていること。
+```

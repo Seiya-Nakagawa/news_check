@@ -129,7 +129,7 @@ terraform login
 #### 4.2. 初期化
 
 ```bash
-cd /home/seiya/git/infra-oci-terraform/terraform
+cd terraform
 terraform init
 ```
 
