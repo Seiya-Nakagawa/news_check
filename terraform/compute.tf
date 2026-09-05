@@ -1,5 +1,5 @@
 # Compute Instance
-resource "oci_core_instance" "news_check_instance" {
+resource "oci_core_instance" "main" {
   compartment_id      = var.compartment_ocid
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   display_name        = var.instance_display_name
@@ -31,7 +31,7 @@ resource "oci_core_instance" "news_check_instance" {
 
   # Network設定
   create_vnic_details {
-    subnet_id        = oci_core_subnet.news_check_public_subnet.id
+    subnet_id        = oci_core_subnet.public.id
     assign_public_ip = true
     display_name     = "${var.instance_display_name}-vnic"
   }
