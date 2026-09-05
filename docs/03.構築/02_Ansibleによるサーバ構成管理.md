@@ -8,7 +8,8 @@
   - [3.1. 接続テスト](#31-接続テスト)
   - [3.2. 機密情報の管理 (Ansible Vault)](#32-機密情報の管理-ansible-vault)
     - [3.2.1. Vault パスワードファイルの作成 (推奨)](#321-vault-パスワードファイルの作成-推奨)
-    - [3.2.2. 暗号化変数の設定](#322-暗号化変数の設定)
+    - [3.2.2. Ansible 設定ファイルの確認](#322-ansible-設定ファイルの確認)
+    - [3.2.3. 暗号化変数の設定](#323-暗号化変数の設定)
   - [3.3. 構築プレイブックの実行](#33-構築プレイブックの実行)
     - [3.3.1. インベントリファイルの確認](#331-インベントリファイルの確認)
     - [3.3.2. 構文チェック (Syntax Check)](#332-構文チェック-syntax-check)
@@ -76,7 +77,21 @@ echo "MySecretPassword123" > .vault_password
 chmod 600 .vault_password
 ```
 
-#### 3.2.2. 暗号化変数の設定
+#### 3.2.2. Ansible 設定ファイルの確認
+
+`ansible/ansible.cfg` の `vault_password_file` により、3.2.1 で作成したパスワードファイルが
+自動的に参照されます。以降の `ansible-playbook` / `ansible-vault` の実行でオプション指定は不要です。
+
+```bash
+cat ansible.cfg
+ansible-config dump --only-changed
+```
+
+- `ansible.cfg` の内容を表示し、`vault_password_file = .vault_password` が設定されていることを確認する
+- Ansible が実際に読み込んでいる設定値を表示し、`DEFAULT_VAULT_PASSWORD_FILE` が
+  `ansible/.vault_password` の絶対パスに解決されていることを確認する
+
+#### 3.2.3. 暗号化変数の設定
 
 `ansible/group_vars/all.yml` または個別のシークレットファイルで、`vault_mysql_password` などの変数を暗号化します。
 
@@ -84,7 +99,7 @@ chmod 600 .vault_password
 
 ```bash
 # 変数値を暗号化 (ansible ディレクトリ内で実行)
-ansible-vault encrypt_string --vault-password-file .vault_password 'YourActualMySQLPasswordHere' --name 'vault_mysql_password'
+ansible-vault encrypt_string 'YourActualMySQLPasswordHere' --name 'vault_mysql_password'
 ```
 
 出力された `!vault | ...` というブロックを `ansible/group_vars/all.yml` の `vault_mysql_password` の部分に貼り付けてください。
@@ -120,13 +135,13 @@ ansible-playbook -i hosts.yml site.yml --syntax-check
 1. **ドライラン（確認のみ）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff --tags os
+   ansible-playbook -i hosts.yml site.yml --check --diff --tags os
    ```
 
 2. **本実行（適用）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --tags os
+   ansible-playbook -i hosts.yml site.yml --tags os
    ```
 
 ##### 3.3.3.2. Kubernetesクラスター構築 (Tag: `kubernetes`)
@@ -136,13 +151,13 @@ ansible-playbook -i hosts.yml site.yml --syntax-check
 1. **ドライラン（確認のみ）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff --tags kubernetes
+   ansible-playbook -i hosts.yml site.yml --check --diff --tags kubernetes
    ```
 
 2. **本実行（適用）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --tags kubernetes
+   ansible-playbook -i hosts.yml site.yml --tags kubernetes
    ```
 
 ##### 3.3.3.3. MySQLサーバー構築 (Tag: `mysql`)
@@ -152,13 +167,13 @@ ansible-playbook -i hosts.yml site.yml --syntax-check
 1. **ドライラン（確認のみ）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff --tags mysql
+   ansible-playbook -i hosts.yml site.yml --check --diff --tags mysql
    ```
 
 2. **本実行（適用）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --tags mysql
+   ansible-playbook -i hosts.yml site.yml --tags mysql
    ```
 
 ##### 3.3.3.4. (参考) 全て一括で実行したい場合
@@ -168,13 +183,13 @@ ansible-playbook -i hosts.yml site.yml --syntax-check
 1. **ドライラン（確認のみ）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password --check --diff
+   ansible-playbook -i hosts.yml site.yml --check --diff
    ```
 
 2. **本実行（適用）**
 
    ```bash
-   ansible-playbook -i hosts.yml site.yml --vault-password-file .vault_password
+   ansible-playbook -i hosts.yml site.yml
    ```
 
 ---
