@@ -57,3 +57,22 @@ output "instance_user" {
   description = "Default SSH user for the instance"
   value       = var.instance_user
 }
+
+# OCI Vault OCID (Ansible/ESOがSecret参照に使用)
+output "oci_vault_id" {
+  description = "OCID of the OCI Vault storing shared application secrets"
+  value       = oci_kms_vault.secrets.id
+}
+
+# コンパートメントOCID (ClusterSecretStore設定に使用)
+output "oci_compartment_ocid" {
+  description = "Compartment OCID where the vault and its secrets live"
+  value       = var.compartment_ocid
+  sensitive   = true
+}
+
+# リージョン (ClusterSecretStore設定に使用)
+output "oci_region" {
+  description = "OCI region where the vault is provisioned"
+  value       = var.region
+}

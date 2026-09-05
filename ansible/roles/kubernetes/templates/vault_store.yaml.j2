@@ -1,0 +1,11 @@
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: {{ eso_cluster_secret_store_name }}
+spec:
+  provider:
+    oracle:
+      vault: {{ oci_vault_id }}
+      region: {{ oci_region }}
+      compartment: {{ oci_compartment_ocid }}
+      principalType: InstancePrincipal

@@ -89,17 +89,50 @@
   loop: "{{ mysql_databases }}"
   when: not ansible_check_mode
 
+# app-dbuser等のパスワードはOCI Vault（Secrets Management）を真実源として一元管理し、
+# 各プロジェクトの.envへ平文で書き写す運用は行わない（MySQL設計書 4.1節参照）。
+# Ansibleはユーザープリンシパル（ローカルのOCI CLI設定）でSecretを取得する。
+- name: Fetch application user passwords from OCI Vault
+  ansible.builtin.command:
+    cmd: >
+      oci secrets secret-bundle get-secret-bundle-by-name
+      --secret-name {{ item.oci_secret_name }}
+      --vault-id {{ oci_vault_id }}
+      --query "data.\"secret-bundle-content\".content" --raw-output
+  delegate_to: localhost
+  become: false
+  loop: "{{ mysql_users }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: mysql_user_secrets
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Build application user password lookup
+  ansible.builtin.set_fact:
+    mysql_user_passwords: "{{ dict(mysql_users | map(attribute='name') | zip(mysql_user_secrets.results | map(attribute='stdout') | map('b64decode'))) }}"
+  no_log: true
+  when: not ansible_check_mode
+
 # update_password: on_create を指定しない場合、実行のたびに既存ユーザーの
-# パスワードがmysql_users変数の値で上書きされ、実際にDB側で運用中のパスワードと
+# パスワードがOCI Vaultの値で上書きされ、実際にDB側で運用中のパスワードと
 # 乖離した場合に本番DB接続断を引き起こす（2026-09-05に実際に発生）。
+#
+# community.mysql.mysql_user は password（平文）と plugin を同時に指定すると、
+# ユーザー新規作成時に password 側の分岐が優先され plugin 指定を無視して
+# mysql_native_password で作成してしまう（community.mysql 3.8.0で確認、
+# plugins/module_utils/user.py の user_add() が password 指定時に
+# plugin 分岐へ到達しないため）。plugin を確実に反映させるには、
+# password ではなく plugin_auth_string（IDENTIFIED WITH plugin BY ...）を使う。
 - name: Create application users and grant privileges
   mysql_user:
     name: "{{ item.name }}"
-    password: "{{ item.password }}"
+    plugin: caching_sha2_password
+    plugin_auth_string: "{{ mysql_user_passwords[item.name] }}"
     priv: "{{ item.priv }}"
     host: "{{ item.host }}"
     state: present
-    plugin: caching_sha2_password
     update_password: on_create
     login_unix_socket: /var/run/mysqld/mysqld.sock
   loop: "{{ mysql_users }}"
