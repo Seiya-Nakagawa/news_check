@@ -214,3 +214,40 @@
   register: cluster_issuer_deploy
   changed_when: "'created' in cluster_issuer_deploy.stdout or 'configured' in cluster_issuer_deploy.stdout"
   when: not ansible_check_mode
+
+# External Secrets Operator
+# 個人開発プロジェクト間で共有するDBパスワード等を、各プロジェクトの.envへ平文で
+# 書き写す運用をやめ、OCI Vaultを真実源としてKubernetes Secretへ同期する
+# （基本設計書 1.2節、MySQL設計書 4.1節参照）。
+# CRD（clustersecretstores/secretstores）のOpenAPIスキーマが大きく、通常の
+# client-side apply が付与する last-applied-configuration アノテーションが
+# Kubernetesのアノテーション上限（262144バイト）を超えるため、--server-side を使う。
+- name: Deploy External Secrets Operator
+  become_user: seiya
+  command: >
+    kubectl apply --server-side --force-conflicts
+    -f https://github.com/external-secrets/external-secrets/releases/download/{{ eso_version }}/external-secrets.yaml
+  register: eso_deploy
+  changed_when: "'created' in eso_deploy.stdout or 'configured' in eso_deploy.stdout"
+
+# external-secrets.yaml は専用Namespaceを作成せず、kubectlの現在のコンテキスト
+# （このクラスタでは default）にリソースを展開する。
+- name: Wait for External Secrets Operator webhook to become ready
+  become_user: seiya
+  command: kubectl wait --for=condition=Available deployment/external-secrets-webhook -n default --timeout=120s
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Generate ClusterSecretStore manifest for OCI Vault
+  template:
+    src: vault_store.yaml.j2
+    dest: /tmp/vault_store.yaml
+    mode: '0644'
+  when: not ansible_check_mode
+
+- name: Deploy ClusterSecretStore for OCI Vault
+  become_user: seiya
+  command: kubectl apply -f /tmp/vault_store.yaml
+  register: vault_store_deploy
+  changed_when: "'created' in vault_store_deploy.stdout or 'configured' in vault_store_deploy.stdout"
+  when: not ansible_check_mode

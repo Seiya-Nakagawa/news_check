@@ -32,17 +32,14 @@ mysql_databases:
 
 mysql_users:
   - name: "app-dbuser"
-    password: "{{ vault_mysql_password | default('DummyPassword123!') }}"
+    oci_secret_name: "app-dbuser-password"
     priv: "*.*:ALL"
     host: "localhost"
 
-# Vault-encrypted variables
-vault_mysql_password: !vault |
-          $ANSIBLE_VAULT;1.1;AES256
-          64373665623638323439393162633231383632366439653733653062383831623537346434613435
-          3939626163646431323131333337383238333832363139310a376539336336373361653037396165
-          36396335346530623965313763653731353264376534643434346164633236663337326634313564
-          6238386335336465620a306666626437356535656637386239623039623830393063323465623966
-          64346330316361316530303536663636356262366234646163356138333431376634316561663662
-          3738393633333733333864643262643330353762393538646535
+# External Secrets Operator settings
+eso_version: "v2.9.0"
+eso_cluster_secret_store_name: "oci-vault"
+
+# OCI Vault settings (oci_vault_id / oci_region / oci_compartment_ocid は
+# terraform output から scripts/run_ansible.sh 経由で -e として渡される)
 

@@ -50,6 +50,9 @@ TF_OUTPUT=$(cd "$TF_DIR" && terraform output -json)
 
 INSTANCE_IP=$(echo "$TF_OUTPUT" | jq -r '.instance_public_ip.value // empty')
 OS_USERNAME=$(echo "$TF_OUTPUT" | jq -r '.instance_user.value // "seiya"')
+OCI_VAULT_ID=$(echo "$TF_OUTPUT" | jq -r '.oci_vault_id.value // empty')
+OCI_REGION=$(echo "$TF_OUTPUT" | jq -r '.oci_region.value // empty')
+OCI_COMPARTMENT_OCID=$(echo "$TF_OUTPUT" | jq -r '.oci_compartment_ocid.value // empty')
 
 if [ -z "$INSTANCE_IP" ]; then
     echo "Error: terraform output からパブリックIPアドレス (instance_public_ip) が取得できませんでした。"
@@ -66,4 +69,7 @@ ansible-playbook -i hosts.yml site.yml \
     -e "ansible_host=$INSTANCE_IP" \
     -e "ansible_user=$OS_USERNAME" \
     -e "ansible_ssh_private_key_file=$SSH_PRIV_KEY_FILE" \
+    -e "oci_vault_id=$OCI_VAULT_ID" \
+    -e "oci_region=$OCI_REGION" \
+    -e "oci_compartment_ocid=$OCI_COMPARTMENT_OCID" \
     "$@"

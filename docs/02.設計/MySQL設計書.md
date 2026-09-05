@@ -68,8 +68,11 @@
 | 管理者権限 | `root@localhost` | `auth_socket`（パスワードなし、OS 特権ユーザーのみ） | 人間のみ（SSH + sudo 経由で手動実行） | ユーザー作成・GRANT 変更・DB 作成等、影響範囲の大きい操作 |
 | 運用権限 | `app-dbuser@localhost` | `caching_sha2_password` | AI が Ansible 経由で運用 | 個人開発プロジェクトのアプリケーションが共有する DB 接続用アカウント |
 
-`app-dbuser` のパスワードは Ansible Vault（`ansible/group_vars/all.yml` の
-`vault_mysql_password`）で管理し、各プロジェクトの `.env` / Kubernetes Secret へ配布する。
+`app-dbuser` のパスワードは OCI Vault の Secret `app-dbuser-password` を真実源として管理する。
+Ansible はサーバ設定時に OCI CLI（ユーザープリンシパル）経由で Secret を取得して MySQL ユーザーへ
+反映し、Kubernetes 上で稼働する各プロジェクトは External Secrets Operator の
+ClusterSecretStore（Instance Principal）経由で Kubernetes Secret へ同期する。
+`.env` への平文の書き写しは行わない。
 管理者権限（`root`）の認証情報は本リポジトリのいかなる場所にも保存しない。
 
 ## 5. 確認コマンド
@@ -91,7 +94,7 @@ mysql_databases:
 
 mysql_users:
   - name: "laravel_user"
-    password: "{{ vault_mysql_password }}"
+    oci_secret_name: "app-dbuser-password" # OCI Vaultから取得（4.1節参照）
     priv: "laravel_db.*:ALL"
     host: "localhost"
 ```
