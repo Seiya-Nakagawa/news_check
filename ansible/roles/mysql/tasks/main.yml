@@ -16,6 +16,28 @@
     mode: '0640'
   register: mysql_config
 
+- name: Create mysql.service systemd drop-in directory
+  file:
+    path: /etc/systemd/system/mysql.service.d
+    state: directory
+    mode: '0755'
+
+# RuntimeDirectory=mysqld のデフォルト（RuntimeDirectoryPreserve=no）だと、
+# mysqld再起動のたびに/var/run/mysqldがディレクトリごと再作成される（inodeが変わる）。
+# Kubernetes Podのhostpathマウントが旧ディレクトリ実体を指したままになりソケット接続が
+# 切れるため、再起動後もディレクトリを保持させる。
+- name: Preserve mysqld runtime directory across restarts
+  copy:
+    content: |
+      [Service]
+      RuntimeDirectoryPreserve=yes
+    dest: /etc/systemd/system/mysql.service.d/override.conf
+    mode: '0644'
+  register: mysql_runtime_dir_override
+  notify:
+    - reload systemd daemon
+    - restart mysql
+
 - name: Ensure MySQL service is enabled and started
   service:
     name: mysql
@@ -67,6 +89,9 @@
   loop: "{{ mysql_databases }}"
   when: not ansible_check_mode
 
+# update_password: on_create を指定しない場合、実行のたびに既存ユーザーの
+# パスワードがmysql_users変数の値で上書きされ、実際にDB側で運用中のパスワードと
+# 乖離した場合に本番DB接続断を引き起こす（2026-09-05に実際に発生）。
 - name: Create application users and grant privileges
   mysql_user:
     name: "{{ item.name }}"
@@ -75,6 +100,7 @@
     host: "{{ item.host }}"
     state: present
     plugin: caching_sha2_password
+    update_password: on_create
     login_unix_socket: /var/run/mysqld/mysqld.sock
   loop: "{{ mysql_users }}"
   when: not ansible_check_mode
