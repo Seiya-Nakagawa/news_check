@@ -61,6 +61,17 @@
 - **ログローテーション**: `logrotate` により `/var/log/mysql/*.log` を 14世代管理。
 - **バックアップ**: IaC での再現性を重視しつつ、必要に応じて `mysqldump` による定期出力を検討。
 
+### 4.1. 権限モデル（管理者権限 / 運用権限）
+
+| 区分 | ユーザー | 認証方式 | 実行主体 | 用途 |
+| :--- | :--- | :--- | :--- | :--- |
+| 管理者権限 | `root@localhost` | `auth_socket`（パスワードなし、OS 特権ユーザーのみ） | 人間のみ（SSH + sudo 経由で手動実行） | ユーザー作成・GRANT 変更・DB 作成等、影響範囲の大きい操作 |
+| 運用権限 | `app-dbuser@localhost` | `caching_sha2_password` | AI が Ansible 経由で運用 | 個人開発プロジェクトのアプリケーションが共有する DB 接続用アカウント |
+
+`app-dbuser` のパスワードは Ansible Vault（`ansible/group_vars/all.yml` の
+`vault_mysql_password`）で管理し、各プロジェクトの `.env` / Kubernetes Secret へ配布する。
+管理者権限（`root`）の認証情報は本リポジトリのいかなる場所にも保存しない。
+
 ## 5. 確認コマンド
 
 - **サービス状態**: `systemctl status mysql`
