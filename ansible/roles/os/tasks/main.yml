@@ -115,6 +115,34 @@
     state: disabled
   when: ufw_check.rc is defined and ufw_check.rc == 0
 
+- name: Remove persistent iptables packages
+  apt:
+    name:
+      - iptables-persistent
+      - netfilter-persistent
+    state: absent
+    purge: yes
+
+- name: Remove saved iptables rule files
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/iptables/rules.v4
+    - /etc/iptables/rules.v6
+
+# OCI の Ubuntu イメージは既定で全拒否ルールを持つため、80/443 の疎通を妨げる。
+# Kubernetes が生成するルールを壊さないよう、全消去ではなく該当ルールのみを削除する。
+- name: Remove catch-all REJECT rules shipped with the OCI Ubuntu image
+  iptables:
+    chain: "{{ item }}"
+    jump: REJECT
+    reject_with: icmp-host-prohibited
+    state: absent
+  loop:
+    - INPUT
+    - FORWARD
+
 - name: Configure DNS resolver systemd-resolved
   lineinfile:
     path: /etc/systemd/resolved.conf
