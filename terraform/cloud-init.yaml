@@ -5,8 +5,8 @@
 users:
   - default
   - name: ${instance_user}
-    gecos: News Check Admin
-    groups: users, admin, docker
+    gecos: OCI Portfolio Admin
+    groups: users, sudo
     sudo: ALL=(ALL) NOPASSWD:ALL
     shell: /bin/bash
     ssh_authorized_keys:
@@ -21,6 +21,6 @@ final_message: |
   Cloud-init basic setup completed!
   User '${instance_user}' has been created.
   The instance is now ready to be configured by Ansible from your local machine (WSL).
-  Please update ansible/inventory/hosts.yml with the public IP and run the playbook.
+  Please update ansible/hosts.yml with the public IP and run the playbook.
 
 #
